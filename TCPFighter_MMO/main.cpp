@@ -1,10 +1,7 @@
 #define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <cstdlib>
-#include <crtdbg.h>
-#include <WS2spi.h>
-#include <windows.h>
 #include <time.h>
+#include <crtdbg.h>
+#include <windows.h>
 #include "Network.h"
 #pragma comment(lib,"Winmm.lib")
 #ifdef _M_IX86
@@ -30,9 +27,13 @@
 
 constexpr int TICK_PER_FRAME = 20;
 constexpr int FRAME_PER_SECONDS = (1000) / TICK_PER_FRAME;
+void Update();
 
 int main()
 {
+	int iOldFrameTick;
+	int iTime;
+	BOOL bShutDown;
 #ifdef _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -44,20 +45,20 @@ int main()
 	{
 		return 0;
 	}
-	int oldFrameTick = timeGetTime();
-	bool isShutDown = false;
-	while (!isShutDown)
+	iOldFrameTick = timeGetTime();
+	bShutDown = FALSE;
+	while (!bShutDown)
 	{
-		//NetworkProc();
-		//time = timeGetTime();
-		//if (time - oldFrameTick >= TICK_PER_FRAME)
-		//{
-		//	Update();
-		//	oldFrameTick += TICK_PER_FRAME;
-		//}
+		NetworkProc();
+		iTime = timeGetTime();
+		if (iTime - iOldFrameTick >= TICK_PER_FRAME)
+		{
+			Update();
+			iOldFrameTick += TICK_PER_FRAME;
+		}
 		if (GetAsyncKeyState(0x35) & 0x8001)
 		{
-			isShutDown = true;
+			bShutDown = TRUE;
 		}
 	}
 	//ClearSessionInfo();

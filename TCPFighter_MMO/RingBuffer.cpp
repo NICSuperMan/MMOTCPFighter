@@ -16,7 +16,7 @@ RingBuffer::RingBuffer(void)
 
 RingBuffer::~RingBuffer(void)
 {
-	delete[] pBuffer_;
+	//delete[] pBuffer_;
 }
 
 // Return:  (int) 현재 Buffer에서 Enqueue되어있는 크기
