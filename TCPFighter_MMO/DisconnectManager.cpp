@@ -87,7 +87,12 @@ void DisconnectManager::RegisterId(unsigned id)
 {
 	st_ID* pID = (st_ID*)AllocMemoryFromPool(mp_);
 	new(pID)st_ID{};
+	st_ID* pDebug;
+	DWORD dwFindRet;
 	pID->id = id;
+	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
+	if (dwFindRet != 0)
+		__debugbreak();
 	hash_.Insert((const void*)pID, (const void*)id, sizeof(st_ID::id));
 	++dwIdNum_;
 }

@@ -131,7 +131,6 @@ void Update()
 	st_SECTOR_AROUND removeSectorAround;
 	st_SECTOR_AROUND newSectorAround;
 	DWORD dwPacketSize;
-	unsigned int* pClosedId;
 
 	pClient = g_pClientManager->GetFirst();
 	while (pClient)
@@ -195,26 +194,23 @@ void Update()
 		pClient = g_pClientManager->GetNext(pClient);
 	}
 
-	DWORD temp;
 	// 끊어야 할 사람 전부 끊기
-	pClosedId = g_pDisconnectManager->GetFirst();
-	while (pClosedId)
-	{
-		//g_pDisconnectManager->IsDeleted(*pClosedId);
-		temp = *pClosedId;
-		pClient = g_pClientManager->Find(*pClosedId);
-		GetSectorAround(pClient->shY, pClient->shX, &removeSectorAround);
-		RemoveClientAtSector(pClient, pClient->CurSector.shY, pClient->CurSector.shX);
+	//pClosedId = g_pDisconnectManager->GetFirst();
+	//while (pClosedId)
+	//{
+	//	pClient = g_pClientManager->Find(*pClosedId);
+	//	GetSectorAround(pClient->shY, pClient->shX, &removeSectorAround);
+	//	RemoveClientAtSector(pClient, pClient->CurSector.shY, pClient->CurSector.shX);
 
-		// 삭제될 캐릭터 주위 섹터에 캐릭터 삭제 메시지 뿌리기
-		dwPacketSize = MAKE_SC_DELETE_CHARACTER(*pClosedId);
-		SendPacket_Around(pClient, &removeSectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
-		g_sb.Clear();
-		_LOG(dwLog_LEVEL_SYSTEM, L"Client ID : %u Disconnected", *pClosedId);
+	//	// 삭제될 캐릭터 주위 섹터에 캐릭터 삭제 메시지 뿌리기
+	//	dwPacketSize = MAKE_SC_DELETE_CHARACTER(*pClosedId);
+	//	SendPacket_Around(pClient, &removeSectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
+	//	g_sb.Clear();
+	//	_LOG(dwLog_LEVEL_SYSTEM, L"Client ID : %u Disconnected", *pClosedId);
 
-		g_pClientManager->removeClient(pClient);
-		g_pSessionManager->removeSession(*pClosedId);
-		g_pDisconnectManager->removeID(pClosedId);
-		pClosedId = g_pDisconnectManager->GetFirst();
-	}
+	//	g_pClientManager->removeClient(pClient);
+	//	g_pSessionManager->removeSession(*pClosedId);
+	//	g_pDisconnectManager->removeID(pClosedId);
+	//	pClosedId = g_pDisconnectManager->GetFirst();
+	//}
 }

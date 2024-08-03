@@ -133,6 +133,7 @@ void CStaticHashTable::Delete(const void* pBucket)
         // remove BUCKET_DESCRIPTOR to the linked list for traversal
         UnLinkFromLinkedList(&pBucketDescHead_, &pBucketDescTail_, &(pBucketDesc->link));
     }
+    pHashMetaData->pBucketDesc = nullptr;
     --dwItemNum_;
 }
 

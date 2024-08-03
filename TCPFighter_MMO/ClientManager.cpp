@@ -3,6 +3,7 @@
 #include "Constant.h"
 #include "RingBuffer.h"
 #include "ClientManager.h"
+#include <time.h>
 
 #pragma warning(disable : 4302)
 #pragma warning(disable : 4311)
@@ -36,6 +37,7 @@ static BOOL keyCompareFunc(const void* pKeyInHash, const void* pKey)
 
 ClientManager::ClientManager()
 {
+	srand(time(nullptr));
 }
 
 ClientManager::~ClientManager()
@@ -75,19 +77,26 @@ BOOL ClientManager::Initialize()
 
 void ClientManager::RegisterClient(DWORD id, st_Session* pNewSession, st_Client** ppOut)
 {
+	st_Client* pDebug;
+	DWORD dwFindRet;
 	st_Client* pNewClient = (st_Client*)AllocMemoryFromPool(mp_);
 	new(pNewClient)st_Client{};
 	
 	pNewClient->dwID = id;
 	pNewClient->dwAction = NOMOVE;
-	pNewClient->shX = INIT_POS_X;
-	pNewClient->shY = INIT_POS_Y;
+	//pNewClient->shX = INIT_POS_X;
+	//pNewClient->shY = INIT_POS_Y;
+	pNewClient->shX = (rand() % (dfRANGE_MOVE_RIGHT - 1)) + 1; // 1 ~ 6399
+	pNewClient->shY = (rand() % (dfRANGE_MOVE_BOTTOM- 1)) + 1;
 	pNewClient->byViewDir = INIT_DIR;
 	pNewClient->byMoveDir = dfPACKET_MOVE_DIR_NOMOVE;
 	pNewClient->chHp = INIT_HP;
 
 	*ppOut = pNewClient;
 
+	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
+	if (dwFindRet != 0)
+		__debugbreak();
 	hash_.Insert((const void*)pNewClient, (const void*)id, sizeof(st_Client::dwID));
 	++dwClientNum_;
 }

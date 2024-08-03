@@ -15,6 +15,7 @@
 #include "DisconnectManager.h"
 #include "Logger.h"
 #include "Update.h"
+extern int g_iSyncCount;
 
 CStub* g_pCSProc;
 BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize);
@@ -142,7 +143,8 @@ BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
 	// 오차가 dfERROR_RANGE 이상이면 서버가 알던 좌표로 싱크 맞추기
 	if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
 	{
-		_LOG(dwLog_LEVEL_SYSTEM, L"Send Sync To Client : %u X : %d, Y : %d -> X : %d, Y : %d", dwFromId, shX, shY, shServerX, shServerY);
+		//_LOG(dwLog_LEVEL_SYSTEM, L"Send Sync To Client : %u X : %d, Y : %d -> X : %d, Y : %d", dwFromId, shX, shY, shServerX, shServerY);
+		++g_iSyncCount;
 		dwPacketSize = MAKE_SC_SYNC(dwFromId, shServerX, shServerY);
 		GetSectorAround(shServerY, shServerX, &sectorAround);
 		SendPacket_Around(pClient, &sectorAround, g_sb.GetBufferPtr(), dwPacketSize, TRUE);
@@ -207,10 +209,12 @@ BOOL CSProc::CS_MOVE_STOP(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 	// 오차가 dfERROR_RANGE 이상이면 서버가 알던 좌표로 싱크 맞추기
 	if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
 	{
-		_LOG(dwLog_LEVEL_SYSTEM, L"Sync POS ID : %u STOP POS X : %d, Y : %d -> Sync POS X : %d, Y : %d", dwFromId, shX, shY,shServerX,shServerY);
+		//_LOG(dwLog_LEVEL_SYSTEM, L"Sync POS ID : %u STOP POS X : %d, Y : %d -> Sync POS X : %d, Y : %d", dwFromId, shX, shY,shServerX,shServerY);
+		++g_iSyncCount;
 		dwPacketSize = MAKE_SC_SYNC(dwFromId, shServerX, shServerY);
 		GetSectorAround(shServerY, shServerX, &sectorAround);
 		SendPacket_Around(pClient, &sectorAround, g_sb.GetBufferPtr(), dwPacketSize, TRUE);
+		g_sb.Clear();
 		shY = shServerY;
 		shX = shServerX;
 	}
@@ -440,7 +444,6 @@ lb_return:
 BOOL CSProc::CS_ECHO(DWORD dwFromId, DWORD dwTime)
 {
 	DWORD dwPacketSize;
-	_LOG(dwLog_LEVEL_DEBUG, L"CS_ECHO Client ID : %u Time : %x", dwFromId, dwTime);
 	dwPacketSize = MAKE_SC_ECHO(dwTime);
 	EnqPacketUnicast(dwFromId, g_sb.GetBufferPtr(), dwPacketSize);
 	g_sb.Clear();

@@ -66,7 +66,12 @@ SessionManager::~SessionManager()
 
 void SessionManager::RegisterSession(unsigned id, SOCKET socket, st_Session** ppOut)
 {
+	st_Session* pDebug;
 	st_Session* pNewSession = (st_Session*)AllocMemoryFromPool(mp_);
+	DWORD dwFindRet;
+	dwFindRet = hash_.Find((void**)&pNewSession, 1, (const void*)id, sizeof(id));
+	if (dwFindRet != 0)
+		__debugbreak();
 	new(pNewSession)st_Session{ socket,id };
 	*ppOut = pNewSession;
 	hash_.Insert((const void*)pNewSession, (const void*)id, sizeof(st_Session::id));
@@ -90,7 +95,7 @@ void SessionManager::removeSession(st_Session* pSession)
 {
 	hash_.Delete((const void*)pSession);
 	--dwUserNum_;
-	closesocket(pSession->id);
+	closesocket(pSession->clientSock);
 	RetMemoryToPool(mp_, pSession);
 }
 

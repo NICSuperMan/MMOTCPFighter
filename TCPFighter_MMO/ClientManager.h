@@ -20,10 +20,10 @@ public:
 	st_Client* GetFirst();
 	st_Client* GetNext(const st_Client* pClient);
 	st_Client* Find(DWORD dwID);
+	DWORD dwClientNum_ = 0;
 
 private:
 	CStaticHashTable hash_;
-	DWORD dwClientNum_ = 0;
 	MEMORYPOOL mp_;
 };
 

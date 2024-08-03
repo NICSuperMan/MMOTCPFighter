@@ -18,10 +18,10 @@ public:
 	st_Session* Find(unsigned id);
 	BOOL Disconnect(unsigned id);
 	BOOL IsFull();
+	SHORT dwUserNum_ = 0;
 
 private:
 	CStaticHashTable hash_;
-	SHORT dwUserNum_ = 0;
 	MEMORYPOOL mp_;
 };
 

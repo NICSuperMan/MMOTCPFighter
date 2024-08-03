@@ -31,6 +31,7 @@ SerializeBuffer g_sb;
 SessionManager* g_pSessionManager;
 DisconnectManager* g_pDisconnectManager;
 ClientManager* g_pClientManager;
+extern int g_iDisconCount;
 
 void SendProc(st_Session* pSession);
 BOOL RecvProc(st_Session* pSession);
@@ -137,16 +138,16 @@ BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
 
 	pSendRB = &(pSession->sendBuffer);
 
-	// 임시
 
-	//if (packetSize == 7 && (BYTE)pPacket[2] == dfPACKET_SC_ECHO)
-	//{
-		//printf("ECHO SEND TO CLI %u : ",dwID);
-		//for (int i = 0; i < packetSize; ++i)
-		//	printf("%x ", pPacket[i] & 0xFF);
-		//printf("\n");
-	//}
-		//__debugbreak();
+	// 8989 디버깅
+	for (int i = 0; i < packetSize; ++i)
+	{
+		if (i == packetSize - 1)
+			continue;
+
+		if ((pPacket[i] & 0xFF) == (pPacket[i + 1] & 0xFF) == 0x89)
+			__debugbreak();
+	}
 
 	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
@@ -263,10 +264,11 @@ __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_se
 	{
 		return;
 	}
-	else if (iSelectRet == SOCKET_ERROR)
+
+	if (iSelectRet == SOCKET_ERROR)
 	{
 		_LOG(dwLog_LEVEL_DEBUG, L"Select Func Error Code : %d", WSAGetLastError());
-		__debugbreak();
+		//__debugbreak();
 		return;
 	}
 
@@ -310,6 +312,9 @@ BOOL NetworkProc()
 	pSession = g_pSessionManager->GetFirst();
 	while (pSession)
 	{
+		//if (g_pDisconnectManager->IsDeleted(pSession->id))
+		//	__debugbreak();
+
 		FD_SET(pSession->clientSock, &readSet);
 		if (pSession->sendBuffer.GetUseSize() > 0)
 		{
@@ -331,12 +336,38 @@ BOOL NetworkProc()
 			FD_ZERO(&writeSet);
 			FD_SET(g_listenSock, &readSet);
 			++dwSockCount;
+			ZeroMemory(pSessionArrForSelect, sizeof(pSession) * (FD_SETSIZE - 1));
 		}
 	}
 
 	if (dwSockCount > 0)
 	{
 		SelectProc(pSessionArrForSelect, &readSet, &writeSet);//, dwSockCount);
+	}
+
+	unsigned int* pClosedId;
+	st_Client* pClient;
+	DWORD dwPacketSize;
+	st_SECTOR_AROUND removeSectorAround;
+	// 끊어야 할 사람 전부 끊기
+	pClosedId = g_pDisconnectManager->GetFirst();
+	while (pClosedId)
+	{
+		pClient = g_pClientManager->Find(*pClosedId);
+		GetSectorAround(pClient->shY, pClient->shX, &removeSectorAround);
+		RemoveClientAtSector(pClient, pClient->CurSector.shY, pClient->CurSector.shX);
+
+		// 삭제될 캐릭터 주위 섹터에 캐릭터 삭제 메시지 뿌리기
+		dwPacketSize = MAKE_SC_DELETE_CHARACTER(*pClosedId);
+		SendPacket_Around(pClient, &removeSectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
+		g_sb.Clear();
+		//_LOG(dwLog_LEVEL_SYSTEM, L"Client ID : %u Disconnected", *pClosedId);
+
+		g_pClientManager->removeClient(pClient);
+		g_pSessionManager->removeSession(*pClosedId);
+		g_pDisconnectManager->removeID(pClosedId);
+		++g_iDisconCount;
+		pClosedId = g_pDisconnectManager->GetFirst();
 	}
 	return TRUE;
 }
@@ -345,6 +376,7 @@ BOOL NetworkProc()
 int g_before;
 int g_after;
 BOOL IsCatch = FALSE;
+char* pTemp = new char[20000];
 
 void SendProc(st_Session* pSession)
 {
@@ -354,7 +386,8 @@ void SendProc(st_Session* pSession)
 	int iSendSize;
 	int iSendRet;
 	int iErrCode;
-
+	
+	int idx = 0;
 
 	// 삭제해야하는 id목록에 존재한다면 그냥 넘긴다
 	if (g_pDisconnectManager->IsDeleted(pSession->id))
@@ -378,49 +411,52 @@ void SendProc(st_Session* pSession)
 			iSendSize = iDirectDeqSize;
 		}
 
-		//char* temp = pSendRB->GetReadStartPtr();
-		//printf("Print Send Binary ID %u : ",pSession->id);
+		char* temp = pSendRB->GetReadStartPtr();
+		//pSendRB->Peek(iSendSize, pTemp + idx);
+		//idx += iSendSize;
 		//for (int i = 0; i < iSendSize; ++i)
 		//{
-		//	printf("%x ", temp[i] & 0xFF);
-		//	if (i != iSendSize - 1 && temp[i + 1] == 0x89)
-		//		printf("\n");
+		//	if (i == iSendSize - 1)
+		//		continue;
+		//	if ((pTemp[i] & 0xFF) == (pTemp[i + 1] & 0xFF) == 0x89)
+		//	{
+		//		printf("Debug Send Binary ID %u : ",pSession->id);
+		//		__debugbreak();
+		//	}
 		//}
-		printf("\n");
 		iSendRet = send(pSession->clientSock, pSendRB->GetReadStartPtr(), iSendSize, 0);
 		if (iSendRet == SOCKET_ERROR)
 		{
-			g_pDisconnectManager->RegisterId(pSession->id);
 			iErrCode = WSAGetLastError();
 			if (iErrCode != WSAEWOULDBLOCK)
 			{
-				_LOG(dwLog_LEVEL_SYSTEM, L"session ID : %d, send() func error code : %d #", pSession->id, iErrCode);
+				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d, send() func error code : %d #", pSession->id, iErrCode);
 				g_pDisconnectManager->RegisterId(pSession->id);
 			}
 			else
 			{
-				_LOG(dwLog_LEVEL_SYSTEM, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
+				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
 			}
-			return;
 		}
 		//_LOG(dwLog_LEVEL_DEBUG, L"session ID : %d\tsend size : %d\tsendRB DirectDequeueSize : %d#", pSession->id, iSendSize, pSendRB->DirectDequeueSize());
-		//int tempFront = pSendRB->front_;
-		//int tempSendSizeBefore = iSendSize
-		//printf("센드링버퍼 센드 끝나서 프론트 옮길게\n");
 		pSendRB->MoveFront(iSendSize);
-		//int tempSendSizeAfter = iSendSize;
-		//if (pSendRB->front_ == 1000)
-		//	__debugbreak();
-		if (pSendRB->front_ == 993)
-		{
-			IsCatch = TRUE;
-		}
-		//printf("iSendSize ID %u : %d front : %d -> %d, DirectDequeueSize : %d -> %d \n", pSession->id, iSendSize, tempFront, pSendRB->front_, iDirectDeqSize, pSendRB->DirectDequeueSize());
-		//printf("Before iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
+		//if (pSendRB->front_ == 993)
+		//{
+		//	IsCatch = TRUE;
+		//}
 		iUseSize = pSendRB->GetUseSize();
 		iDirectDeqSize = pSendRB->DirectDequeueSize();
-		//printf("After iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
 	}
+	//printf("print Binary : %d\n",pSession->id);
+	//for (int i = 0; i < idx; ++i)
+	//{
+	//	printf("%x ", pTemp[i] & 0xFF);
+	//	if (i + 1 != idx && ((pTemp[i + 1] & 0XFF) == (pTemp[i] & 0xFF) == 0x89))
+	//		__debugbreak();
+	//	if (i + 1 != idx && ((pTemp[i + 1] & 0xFF) == 0x89))
+	//		printf("\n");
+	//}
+	//printf("\n");
 }
 
 BOOL RecvProc(st_Session* pSession)
@@ -432,8 +468,6 @@ BOOL RecvProc(st_Session* pSession)
 	Header header;
 	BOOL bRet;
 	RingBuffer* pRecvRB;
-	int iTempRear;
-	int iTempFront;
 
 	bRet = FALSE;
 	if (g_pDisconnectManager->IsDeleted(pSession->id))
@@ -456,37 +490,24 @@ BOOL RecvProc(st_Session* pSession)
 		int errCode = WSAGetLastError();
 		if (errCode != WSAEWOULDBLOCK)
 		{
-			_LOG(dwLog_LEVEL_SYSTEM, L"Session ID : %d, recv() error code : %d\n", pSession->id, errCode);
+			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %d, recv() error code : %d\n", pSession->id, errCode);
 			g_pDisconnectManager->RegisterId(pSession->id);
 		}
 		goto lb_return;
 	}
 	//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, recv() -> recvRB size : %d", pSession->id, iRecvRet);
-	printf("리시브 끝나서 리시브 링버퍼 리어 옮길게\n");
-	iTempRear = pRecvRB->rear_;
 	pRecvRB->MoveRear(iRecvRet);
-	printf("rear %d -> %d\n", iTempRear, pRecvRB->rear_);
 
 	while (true)
 	{
-		printf("리시브 링버퍼 헤더에서 디큐할게\n");
-		iTempFront = pRecvRB->front_;
 		iPeekRet = pRecvRB->Peek(sizeof(header), (char*)&header);
-		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
 		if (iPeekRet== 0)
 			goto lb_return;
-		char* temp = (char*)&header;
-		printf("Print Recv Header Binary ID %u : ", pSession->id);
-		for (int i = 0; i < iPeekRet; ++i)
-		{
-			printf("%x ", temp[i] & 0xFF);
-		}
-		printf("\n");
 
 		if (header.byCode != 0x89)
 		{
 			__debugbreak();
-			_LOG(dwLog_LEVEL_SYSTEM, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->id);
+			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->id);
 			g_pDisconnectManager->RegisterId(pSession->id);
 			goto lb_return;
 		}
@@ -497,20 +518,9 @@ BOOL RecvProc(st_Session* pSession)
 			g_sb.Resize();
 		}
 
-		printf("리시브 링버퍼 메시지 직렬화 버퍼로 디큐할게\n");
-		iTempFront = pRecvRB->front_;
 		iDeqRet = pRecvRB->Dequeue(g_sb.GetBufferPtr(), sizeof(header) + header.bySize);
-		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
 		if (iDeqRet == 0)
 			goto lb_return;
-
-		temp = g_sb.GetBufferPtr();
-		printf("Print Recv Packet Binary ID %u : \n", pSession->id);
-		for (int i = 0; i < iDeqRet; ++i)
-		{
-			printf("%x ", temp[i] & 0xFF);
-		}
-		printf("\n");
 
 		g_sb.MoveWritePos(iDeqRet);
 		g_sb.MoveReadPos(sizeof(header));
