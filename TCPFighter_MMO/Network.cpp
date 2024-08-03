@@ -471,13 +471,13 @@ BOOL RecvProc(st_Session* pSession)
 	{
 		printf("리시브 링버퍼 헤더에서 디큐할게\n");
 		iTempFront = pRecvRB->front_;
-		iDeqRet = pRecvRB->Dequeue((char*)&header, sizeof(header));
+		iPeekRet = pRecvRB->Peek(sizeof(header), (char*)&header);
 		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
-		if (iDeqRet == 0)
+		if (iPeekRet== 0)
 			goto lb_return;
 		char* temp = (char*)&header;
 		printf("Print Recv Header Binary ID %u : ", pSession->id);
-		for (int i = 0; i < iDeqRet; ++i)
+		for (int i = 0; i < iPeekRet; ++i)
 		{
 			printf("%x ", temp[i] & 0xFF);
 		}
@@ -499,7 +499,7 @@ BOOL RecvProc(st_Session* pSession)
 
 		printf("리시브 링버퍼 메시지 직렬화 버퍼로 디큐할게\n");
 		iTempFront = pRecvRB->front_;
-		iDeqRet = pRecvRB->Dequeue(g_sb.GetBufferPtr(), header.bySize);
+		iDeqRet = pRecvRB->Dequeue(g_sb.GetBufferPtr(), sizeof(header) + header.bySize);
 		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
 		if (iDeqRet == 0)
 			goto lb_return;
@@ -513,6 +513,7 @@ BOOL RecvProc(st_Session* pSession)
 		printf("\n");
 
 		g_sb.MoveWritePos(iDeqRet);
+		g_sb.MoveReadPos(sizeof(header));
 		g_pCSProc->PacketProc(pSession->id, header.byType);
 	}
 
