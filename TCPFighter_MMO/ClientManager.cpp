@@ -132,7 +132,10 @@ st_Client* ClientManager::Find(DWORD dwID)
 
 	dwFindRet = hash_.Find((void**)&pRet, 1, (const void**)dwID, sizeof(st_Client::dwID));
 	if (!dwFindRet)
+	{
+		__debugbreak();
 		return nullptr;
+	}
 
 	return pRet;
 }

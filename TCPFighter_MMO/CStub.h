@@ -12,6 +12,7 @@ private:
 		dfPACKET_CS_MOVE_STOP = 12,
 		dfPACKET_CS_ATTACK1 = 20,
 		dfPACKET_CS_ATTACK2 = 22,
+		dfPACKET_CS_ATTACK3 = 24,
 		dfPACKET_CS_ECHO = 252,
 	};
 
@@ -28,9 +29,12 @@ public:
 			return CS_ATTACK1_RECV(dwFromId);
 		case dfPACKET_CS_ATTACK2:
 			return CS_ATTACK2_RECV(dwFromId);
+		case dfPACKET_CS_ATTACK3:
+			return CS_ATTACK3_RECV(dwFromId);
 		case dfPACKET_CS_ECHO:
 			return CS_ECHO_RECV(dwFromId);
 		default:
+			__debugbreak();
 			return FALSE;
 		}
 	}
@@ -99,6 +103,23 @@ public:
 		return FALSE;
 	}
 
+	BOOL CS_ATTACK3_RECV(DWORD dwFromId)
+	{
+		BYTE byViewDir;
+		SHORT shX;
+		SHORT shY;
+		g_sb >> byViewDir >> shX >> shY;
+		g_sb.Clear();
+		CS_ATTACK3(dwFromId, byViewDir, shX, shY);
+		return TRUE;
+	}
+
+	virtual BOOL CS_ATTACK3(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
+	{
+		return FALSE;
+	}
+
+
 	BOOL CS_ECHO_RECV(DWORD dwFromId)
 	{
 		DWORD dwTime;
@@ -108,7 +129,7 @@ public:
 		return TRUE;
 	}
 
-	virtual BOOL CS_ECHO(DWORD dwFromId,SHORT dwTime)
+	virtual BOOL CS_ECHO(DWORD dwFromId,DWORD dwTime)
 	{
 		return FALSE;
 	}

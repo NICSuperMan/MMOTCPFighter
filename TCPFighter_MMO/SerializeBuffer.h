@@ -113,7 +113,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned char value)
+	SerializeBuffer& operator >>(OUT unsigned char& value)
 	{
 		// value의 size만큼 읽을게 없음.
 		if (rear_ - front_ < sizeof(value))

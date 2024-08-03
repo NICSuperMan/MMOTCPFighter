@@ -136,6 +136,18 @@ BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
 		__debugbreak();
 
 	pSendRB = &(pSession->sendBuffer);
+
+	// 임시
+
+	//if (packetSize == 7 && (BYTE)pPacket[2] == dfPACKET_SC_ECHO)
+	//{
+		//printf("ECHO SEND TO CLI %u : ",dwID);
+		//for (int i = 0; i < packetSize; ++i)
+		//	printf("%x ", pPacket[i] & 0xFF);
+		//printf("\n");
+	//}
+		//__debugbreak();
+
 	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
 	{
@@ -194,6 +206,8 @@ void CreatePlayer(st_Client* pNewClient)
 		}
 	}
 
+	pNewClient->CurSector.shY = pNewClient->shY / df_SECTOR_HEIGHT;
+	pNewClient->CurSector.shX = pNewClient->shX / df_SECTOR_WIDTH;
 	AddClientAtSector(pNewClient, pNewClient->CurSector.shY, pNewClient->CurSector.shX);
 }
 
@@ -302,6 +316,9 @@ BOOL NetworkProc()
 			FD_SET(pSession->clientSock, &writeSet);
 		}
 
+		if (dwSockCount - 1 == 63)
+			__debugbreak();
+
 		pSessionArrForSelect[dwSockCount-1] = pSession;
 		++dwSockCount;
 		pSession = g_pSessionManager->GetNext(pSession);
@@ -313,6 +330,7 @@ BOOL NetworkProc()
 			FD_ZERO(&readSet);
 			FD_ZERO(&writeSet);
 			FD_SET(g_listenSock, &readSet);
+			++dwSockCount;
 		}
 	}
 
@@ -324,6 +342,10 @@ BOOL NetworkProc()
 }
 
 
+int g_before;
+int g_after;
+BOOL IsCatch = FALSE;
+
 void SendProc(st_Session* pSession)
 {
 	RingBuffer* pSendRB;
@@ -333,13 +355,17 @@ void SendProc(st_Session* pSession)
 	int iSendRet;
 	int iErrCode;
 
+
 	// 삭제해야하는 id목록에 존재한다면 그냥 넘긴다
 	if (g_pDisconnectManager->IsDeleted(pSession->id))
 		return;
 
 	pSendRB = &(pSession->sendBuffer);
+	//if (IsCatch)
+	//	__debugbreak();
 	iUseSize = pSendRB->GetUseSize();
 	iDirectDeqSize = pSendRB->DirectDequeueSize();
+	//printf("First Calc iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
 	while (iUseSize > 0)
 	{
 		// directDeqSize가 0이거나 useSize < directDeqSize라면 sendSize == useSize이어야 하기 때문이다.
@@ -351,36 +377,63 @@ void SendProc(st_Session* pSession)
 		{
 			iSendSize = iDirectDeqSize;
 		}
+
+		//char* temp = pSendRB->GetReadStartPtr();
+		//printf("Print Send Binary ID %u : ",pSession->id);
+		//for (int i = 0; i < iSendSize; ++i)
+		//{
+		//	printf("%x ", temp[i] & 0xFF);
+		//	if (i != iSendSize - 1 && temp[i + 1] == 0x89)
+		//		printf("\n");
+		//}
+		printf("\n");
 		iSendRet = send(pSession->clientSock, pSendRB->GetReadStartPtr(), iSendSize, 0);
 		if (iSendRet == SOCKET_ERROR)
 		{
+			g_pDisconnectManager->RegisterId(pSession->id);
 			iErrCode = WSAGetLastError();
 			if (iErrCode != WSAEWOULDBLOCK)
 			{
-				_LOG(dwLog_LEVEL_DEBUG, L"session ID : %d, send() func error code : %d #", pSession->id, iErrCode);
+				_LOG(dwLog_LEVEL_SYSTEM, L"session ID : %d, send() func error code : %d #", pSession->id, iErrCode);
 				g_pDisconnectManager->RegisterId(pSession->id);
 			}
 			else
 			{
-				_LOG(dwLog_LEVEL_DEBUG, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
+				_LOG(dwLog_LEVEL_SYSTEM, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
 			}
 			return;
 		}
 		//_LOG(dwLog_LEVEL_DEBUG, L"session ID : %d\tsend size : %d\tsendRB DirectDequeueSize : %d#", pSession->id, iSendSize, pSendRB->DirectDequeueSize());
+		//int tempFront = pSendRB->front_;
+		//int tempSendSizeBefore = iSendSize
+		//printf("센드링버퍼 센드 끝나서 프론트 옮길게\n");
 		pSendRB->MoveFront(iSendSize);
+		//int tempSendSizeAfter = iSendSize;
+		//if (pSendRB->front_ == 1000)
+		//	__debugbreak();
+		if (pSendRB->front_ == 993)
+		{
+			IsCatch = TRUE;
+		}
+		//printf("iSendSize ID %u : %d front : %d -> %d, DirectDequeueSize : %d -> %d \n", pSession->id, iSendSize, tempFront, pSendRB->front_, iDirectDeqSize, pSendRB->DirectDequeueSize());
+		//printf("Before iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
 		iUseSize = pSendRB->GetUseSize();
 		iDirectDeqSize = pSendRB->DirectDequeueSize();
+		//printf("After iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
 	}
 }
 
 BOOL RecvProc(st_Session* pSession)
 {
 	int iRecvRet;
+	int iPeekRet;
 	int iDeqRet;
 	int iRecvSize;
 	Header header;
 	BOOL bRet;
 	RingBuffer* pRecvRB;
+	int iTempRear;
+	int iTempFront;
 
 	bRet = FALSE;
 	if (g_pDisconnectManager->IsDeleted(pSession->id))
@@ -394,7 +447,7 @@ BOOL RecvProc(st_Session* pSession)
 	iRecvRet = recv(pSession->clientSock, pRecvRB->GetWriteStartPtr(), iRecvSize, 0);
 	if (iRecvRet == 0)
 	{
-		_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, TCP CONNECTION END", pSession->id);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, TCP CONNECTION END", pSession->id);
 		g_pDisconnectManager->RegisterId(pSession->id);
 		goto lb_return;
 	}
@@ -403,33 +456,61 @@ BOOL RecvProc(st_Session* pSession)
 		int errCode = WSAGetLastError();
 		if (errCode != WSAEWOULDBLOCK)
 		{
-			_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, recv() error code : %d\n", pSession->id, errCode);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Session ID : %d, recv() error code : %d\n", pSession->id, errCode);
 			g_pDisconnectManager->RegisterId(pSession->id);
 		}
 		goto lb_return;
 	}
-	_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, recv() -> recvRB size : %d", pSession->id, iRecvRet);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, recv() -> recvRB size : %d", pSession->id, iRecvRet);
+	printf("리시브 끝나서 리시브 링버퍼 리어 옮길게\n");
+	iTempRear = pRecvRB->rear_;
 	pRecvRB->MoveRear(iRecvRet);
+	printf("rear %d -> %d\n", iTempRear, pRecvRB->rear_);
 
 	while (true)
 	{
+		printf("리시브 링버퍼 헤더에서 디큐할게\n");
+		iTempFront = pRecvRB->front_;
 		iDeqRet = pRecvRB->Dequeue((char*)&header, sizeof(header));
+		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
 		if (iDeqRet == 0)
 			goto lb_return;
+		char* temp = (char*)&header;
+		printf("Print Recv Header Binary ID %u : ", pSession->id);
+		for (int i = 0; i < iDeqRet; ++i)
+		{
+			printf("%x ", temp[i] & 0xFF);
+		}
+		printf("\n");
 
 		if (header.byCode != 0x89)
 		{
-			_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->id);
+			__debugbreak();
+			_LOG(dwLog_LEVEL_SYSTEM, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->id);
 			g_pDisconnectManager->RegisterId(pSession->id);
 			goto lb_return;
 		}
 		// 직렬화버퍼이므로 매번 메시지를 처리하기 직전에는 rear_ == front_ == 0이라는것이 전제
 		if (g_sb.bufferSize_ < header.bySize)
+		{
+			__debugbreak();
 			g_sb.Resize();
+		}
 
+		printf("리시브 링버퍼 메시지 직렬화 버퍼로 디큐할게\n");
+		iTempFront = pRecvRB->front_;
 		iDeqRet = pRecvRB->Dequeue(g_sb.GetBufferPtr(), header.bySize);
+		printf("front %d -> %d\n", iTempFront, pRecvRB->front_);
 		if (iDeqRet == 0)
 			goto lb_return;
+
+		temp = g_sb.GetBufferPtr();
+		printf("Print Recv Packet Binary ID %u : \n", pSession->id);
+		for (int i = 0; i < iDeqRet; ++i)
+		{
+			printf("%x ", temp[i] & 0xFF);
+		}
+		printf("\n");
 
 		g_sb.MoveWritePos(iDeqRet);
 		g_pCSProc->PacketProc(pSession->id, header.byType);

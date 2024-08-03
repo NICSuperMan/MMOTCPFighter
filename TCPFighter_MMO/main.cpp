@@ -2,7 +2,10 @@
 #include <time.h>
 #include <crtdbg.h>
 #include <windows.h>
+#include <conio.h>
 #include "Network.h"
+#include "Logger.h"
+#include <stdio.h>
 #pragma comment(lib,"Winmm.lib")
 #ifdef _M_IX86
 #ifdef _DEBUG
@@ -29,11 +32,53 @@ constexpr int TICK_PER_FRAME = 20;
 constexpr int FRAME_PER_SECONDS = (1000) / TICK_PER_FRAME;
 void Update();
 
+BOOL g_bShutDown = FALSE;
+
+void ServerControl(void)
+{
+	static bool bControlMode = FALSE;
+	WCHAR ControlKey;
+
+	// L : 컨트롤 Lock / U : 컨트롤 Unlock / Q : 서버종료
+
+	if (_kbhit())
+	{
+		ControlKey = _getwch();
+
+		if (L'u' == ControlKey || L'U' == ControlKey)
+		{
+			bControlMode = TRUE;
+			wprintf(L"Control Mode : Press Q - Quit \n");
+			wprintf(L"Control Mode : Press L - Key Lock \n");
+			wprintf(L"Increase Log Level : Press K\n");
+			wprintf(L"Decrease Log Level : Press J\n");
+		}
+
+		// 키보드 제어 잠그기
+		if ((L'l' == ControlKey || L'L' == ControlKey) && bControlMode)
+		{
+			wprintf(L"Control Lock..! Press U - Control Unlock\n");
+			bControlMode = FALSE;
+		}
+
+		if ((L'q' == ControlKey || L'Q' == ControlKey) && bControlMode)
+			g_bShutDown = TRUE;
+
+		if (L'k' == ControlKey || L'K' == ControlKey && bControlMode)
+			++g_iLogLevel;
+
+		if (L'j' == ControlKey || L'J' == ControlKey && bControlMode)
+			--g_iLogLevel;
+	}
+
+}
+
 int main()
 {
 	int iOldFrameTick;
+	int iFpsCheck;
 	int iTime;
-	BOOL bShutDown;
+	int iFPS;
 #ifdef _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -45,21 +90,29 @@ int main()
 	{
 		return 0;
 	}
+	iFPS = 0;
 	iOldFrameTick = timeGetTime();
-	bShutDown = FALSE;
-	while (!bShutDown)
+	iTime = iOldFrameTick;
+	iFpsCheck = iOldFrameTick;
+
+	while (!g_bShutDown)
 	{
 		NetworkProc();
+
 		iTime = timeGetTime();
 		if (iTime - iOldFrameTick >= TICK_PER_FRAME)
 		{
 			Update();
 			iOldFrameTick += TICK_PER_FRAME;
+			++iFPS;
 		}
-		if (GetAsyncKeyState(0x35) & 0x8001)
+		if (iTime - iFpsCheck >= 1000)
 		{
-			bShutDown = TRUE;
+			iFpsCheck += 1000;
+			//_LOG(dwLog_LEVEL_DEBUG, L"FPS : %d", iFPS);
+			iFPS = 0;
 		}
+		ServerControl();
 	}
 	//ClearSessionInfo();
 	timeEndPeriod(1);

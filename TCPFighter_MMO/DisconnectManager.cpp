@@ -70,10 +70,18 @@ BOOL DisconnectManager::Initialize()
 BOOL DisconnectManager::IsDeleted(unsigned id)
 {
 	st_ID* pFindRet;
+	DWORD dwFindRet;
 	BOOL bRet;
-	pFindRet = (st_ID*)hash_.Find((void**)&pFindRet, 1, (const void*)id, sizeof(id));
-	bRet = ((BOOL)pFindRet);
-	return bRet;
+	dwFindRet = hash_.Find((void**)&pFindRet, 1, (const void*)id, sizeof(id));
+	if (dwFindRet > 1)
+	{
+		__debugbreak();
+		return FALSE;
+	}
+	else if (dwFindRet == 1)
+		return TRUE;
+	else
+		return FALSE;
 }
 void DisconnectManager::RegisterId(unsigned id)
 {
@@ -90,7 +98,7 @@ void DisconnectManager::removeID(unsigned* pID)
 	pSt_ID = (st_ID*)(pID - offsetof(st_ID, id));
 	hash_.Delete((const void*)pSt_ID);
 	--dwIdNum_;
-	RetMemoryToPool(mp_, pID);
+	RetMemoryToPool(mp_, pSt_ID);
 }
 
 unsigned* DisconnectManager::GetFirst()

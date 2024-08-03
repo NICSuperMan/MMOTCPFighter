@@ -4,6 +4,7 @@
 #include "RingBuffer.h"
 #include <math.h>
 #include <memory.h>
+#include "stdio.h"
 
 #define new new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
 #pragma warning(disable : 4267)
@@ -60,7 +61,8 @@ int RingBuffer::Enqueue(IN char* pDest, IN size_t sizeToPut)
 	size_t secondSize = sizeToPut - firstSize;
 
 	
-	memcpy_s(GetWriteStartPtr(), firstSize, pDest, firstSize);
+	char* temp = GetWriteStartPtr();
+	memcpy_s(temp, firstSize, pDest, firstSize);
 	MoveRear(firstSize);
 	//memcpy_s(pBuffer_ + rear_ + 1, firstSize, pDest, firstSize);
 	//rear_ = (rear_ + firstSize) % (BUFFER_SIZE + 1);
@@ -95,6 +97,7 @@ int RingBuffer::Dequeue(OUT char* pDest, IN size_t sizeToRead)
 	size_t secondSize = sizeToRead - firstSize;
 
 	memcpy_s(pDest, firstSize, GetReadStartPtr(), firstSize);
+
 	MoveFront(firstSize);
 	//memcpy_s(pDest, firstSize, pBuffer_ + front_ + 1, firstSize);
 	//front_ = (front_ + firstSize) % (BUFFER_SIZE + 1);
@@ -167,7 +170,7 @@ int RingBuffer::MoveRear(IN int sizeToMove)
 	return rear_;
 }
 
-// sizeToMove만큼 front_이동시키고 현재 rear_를 반환함.
+// sizeToMove만큼 front_이동시키고 현재 front_ 반환함.
 int RingBuffer::MoveFront(IN int sizeToMove)
 {
 	front_ = (front_ + sizeToMove) % (BUFFER_SIZE + 1);

@@ -2,7 +2,7 @@
 #define IN
 #define OUT
 
-constexpr int BUFFER_SIZE = 10000;
+constexpr int BUFFER_SIZE = 1000;
 
 class RingBuffer
 {
@@ -24,7 +24,7 @@ public:
 	char* GetWriteStartPtr(void);
 	char* GetReadStartPtr(void);
 
-	char pBuffer_[BUFFER_SIZE];
+	char pBuffer_[BUFFER_SIZE + 1];
 	int front_;
 	int rear_;
 };

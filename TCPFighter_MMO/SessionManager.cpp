@@ -80,6 +80,7 @@ void SessionManager::removeSession(unsigned id)
 	dwFindRet = hash_.Find((void**)&pSession, 1, (const void*)id, sizeof(id));
 	if (!dwFindRet)
 	{
+		__debugbreak();
 		return;
 	}
 	removeSession(pSession);

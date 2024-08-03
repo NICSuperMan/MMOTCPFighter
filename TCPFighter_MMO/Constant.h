@@ -1,18 +1,18 @@
 #pragma once
 #define SERVERPORT  20000
 #define dfPACKET_CODE		0x89
-constexpr SHORT dfPACKET_MOVE_DIR_LL = 0;
-constexpr SHORT dfPACKET_MOVE_DIR_LU = 1;
-constexpr SHORT dfPACKET_MOVE_DIR_UU = 2;
-constexpr SHORT dfPACKET_MOVE_DIR_RU = 3;
-constexpr SHORT dfPACKET_MOVE_DIR_RR = 4;
-constexpr SHORT dfPACKET_MOVE_DIR_RD = 5;
-constexpr SHORT dfPACKET_MOVE_DIR_DD = 6;
-constexpr SHORT dfPACKET_MOVE_DIR_LD = 7;
-constexpr SHORT dfPACKET_MOVE_DIR_NOMOVE = 8;
+constexpr BYTE dfPACKET_MOVE_DIR_LL = 0;
+constexpr BYTE dfPACKET_MOVE_DIR_LU = 1;
+constexpr BYTE dfPACKET_MOVE_DIR_UU = 2;
+constexpr BYTE dfPACKET_MOVE_DIR_RU = 3;
+constexpr BYTE dfPACKET_MOVE_DIR_RR = 4;
+constexpr BYTE dfPACKET_MOVE_DIR_RD = 5;
+constexpr BYTE dfPACKET_MOVE_DIR_DD = 6;
+constexpr BYTE dfPACKET_MOVE_DIR_LD = 7;
+constexpr BYTE dfPACKET_MOVE_DIR_NOMOVE = 8;
 
-constexpr SHORT MOVE = 1;
-constexpr SHORT NOMOVE = 0;
+constexpr BYTE MOVE = 1;
+constexpr BYTE NOMOVE = 0;
 
 //-----------------------------------------------------------------
 // 30초 이상이 되도록 아무런 메시지 수신도 없는경우 접속 끊음.
@@ -59,8 +59,8 @@ constexpr int dfATTACK3_DAMAGE = 3;
 constexpr int dfSPEED_PLAYER_X = 3	;
 constexpr int dfSPEED_PLAYER_Y = 2	;
 
-constexpr int df_SECTOR_WIDTH = 320;
-constexpr int df_SECTOR_HEIGHT = 320;
+constexpr int df_SECTOR_WIDTH = 160;
+constexpr int df_SECTOR_HEIGHT = 160;
 constexpr int dwNumOfSectorHorizon = dfRANGE_MOVE_RIGHT / df_SECTOR_WIDTH;
 constexpr int dwNumOfSectorVertical = dfRANGE_MOVE_BOTTOM / df_SECTOR_HEIGHT;
 
