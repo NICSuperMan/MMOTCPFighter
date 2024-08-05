@@ -11,7 +11,7 @@ struct st_Session
 	SOCKET clientSock;
 	RingBuffer recvBuffer;
 	RingBuffer sendBuffer;
-	SHORT dwLastRecvTime;
+	DWORD dwLastRecvTime;
 	STATIC_HASH_METADATA shm;
 	st_Session(SOCKET sock, unsigned ID)
 		:clientSock{ sock }, id{ ID }

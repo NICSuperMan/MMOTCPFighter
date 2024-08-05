@@ -63,7 +63,6 @@ BYTE GetSectorMoveDir(SHORT shOldSectorY, SHORT shOldSectorX, SHORT shNewSectorY
 
 	switch (shCompY)
 	{
-	default:
 	case -1:
 		switch (shCompX)
 		{
@@ -92,7 +91,17 @@ BYTE GetSectorMoveDir(SHORT shOldSectorY, SHORT shOldSectorX, SHORT shNewSectorY
 		case 1:
 			return dfPACKET_MOVE_DIR_RD;
 		}
+	default:
+		// 문제가 잇는것이다.
+		__debugbreak();
+		return dfPACKET_MOVE_DIR_NOMOVE;
 	}
+}
+__forceinline BOOL IsSync(SHORT shServerY, SHORT shServerX, SHORT shClientY, SHORT shClientX)
+{
+	BOOL IsXSync = abs(shServerY - shClientY) > dfERROR_RANGE;
+	BOOL IsYSync = abs(shServerX - shClientX) > dfERROR_RANGE;
+	return IsXSync || IsYSync;
 }
 
 BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
@@ -113,6 +122,7 @@ BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
 
 	// 클라이언트 찾기
 	pClient = g_pClientManager->Find(dwFromId);
+	pClient->dwLastRecvTime = timeGetTime();
 	shServerY = pClient->shY;
 	shServerX = pClient->shX;
 
@@ -141,7 +151,8 @@ BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
 	//_LOG(dwLog_LEVEL_ERROR, L"Server Dir : %s, Client Dir : %s", ServerOwnDir, ClientOwnDir);
 
 	// 오차가 dfERROR_RANGE 이상이면 서버가 알던 좌표로 싱크 맞추기
-	if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
+	//if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
+	if (IsSync(shServerY, shServerX, shY, shX))
 	{
 		//_LOG(dwLog_LEVEL_SYSTEM, L"Send Sync To Client : %u X : %d, Y : %d -> X : %d, Y : %d", dwFromId, shX, shY, shServerX, shServerY);
 		++g_iSyncCount;
@@ -182,6 +193,7 @@ BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
 	return TRUE;
 }
 
+
 BOOL CSProc::CS_MOVE_STOP(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 {
 	/*register*/st_Client* pClient;
@@ -200,6 +212,7 @@ BOOL CSProc::CS_MOVE_STOP(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 		return FALSE;
 
 	pClient = g_pClientManager->Find(dwFromId);
+	pClient->dwLastRecvTime = timeGetTime();
 	shServerY = pClient->shY;
 	shServerX = pClient->shX;
 
@@ -207,7 +220,8 @@ BOOL CSProc::CS_MOVE_STOP(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 	_LOG(dwLog_LEVEL_ERROR, L"CS_MOVE_STOP ID : %u, STOP POS X : %d, Y : %d", dwFromId, shX, shY);
 
 	// 오차가 dfERROR_RANGE 이상이면 서버가 알던 좌표로 싱크 맞추기
-	if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
+	//if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)
+	if (IsSync(shServerY, shServerX, shY, shX))
 	{
 		//_LOG(dwLog_LEVEL_SYSTEM, L"Sync POS ID : %u STOP POS X : %d, Y : %d -> Sync POS X : %d, Y : %d", dwFromId, shX, shY,shServerX,shServerY);
 		++g_iSyncCount;
@@ -263,6 +277,7 @@ BOOL CSProc::CS_ATTACK1(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 
 	// 공격자 클라이언트 찾고, 근처 섹터찾아서 ATTACK 패킷 보내기
 	pAttacker = g_pClientManager->Find(dwFromId);
+	pAttacker->dwLastRecvTime = timeGetTime();
 	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK1", pAttacker->dwID);
 	GetSectorAround(shY, shX, &attackerSectorAround);
 	dwPacketSize = MAKE_SC_ATTACK(dwFromId, pAttacker->byViewDir, shX, shY, 1);
@@ -305,7 +320,6 @@ lb_find: // 피격대상자 HP깎고 피격자 근처 섹터에 데미지 메시지 날리기
 	if (pVictim->chHp <= 0)
 	{
 		g_pDisconnectManager->RegisterId(pVictim->dwID);
-		RemoveClientAtSector(pVictim, pVictim->CurSector.shY, pVictim->CurSector.shX);
 	}
 	GetSectorAround(pVictim->shY, pVictim->shX, &victimSectorAround);
 	dwPacketSize = MAKE_SC_DAMAGE(dwFromId, pVictim->dwID, pVictim->chHp);
@@ -331,6 +345,7 @@ BOOL CSProc::CS_ATTACK2(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 
 	// 공격자 클라이언트 찾고, 근처 섹터찾아서 ATTACK 패킷 보내기
 	pAttacker = g_pClientManager->Find(dwFromId);
+	pAttacker->dwLastRecvTime = timeGetTime();
 	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK2", pAttacker->dwID);
 	GetSectorAround(shY, shX, &attackerSectorAround);
 	dwPacketSize = MAKE_SC_ATTACK(dwFromId, pAttacker->byViewDir, shX, shY, 2);
@@ -368,7 +383,11 @@ BOOL CSProc::CS_ATTACK2(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 	}
 	goto lb_return;
 lb_find: // 피격대상자 HP깎고 피격자 근처 섹터에 데미지 메시지 날리기
-	pVictim->chHp -= dfATTACK1_DAMAGE;
+	pVictim->chHp -= dfATTACK2_DAMAGE;
+	if (pVictim->chHp <= 0)
+	{
+		g_pDisconnectManager->RegisterId(pVictim->dwID);
+	}
 	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u", pVictim->dwID, pAttacker->dwID);
 	GetSectorAround(pVictim->shY, pVictim->shX, &victimSectorAround);
 	dwPacketSize = MAKE_SC_DAMAGE(dwFromId, pVictim->dwID, pVictim->chHp);
@@ -394,6 +413,7 @@ BOOL CSProc::CS_ATTACK3(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 
 	// 공격자 클라이언트 찾고, 근처 섹터찾아서 ATTACK 패킷 보내기
 	pAttacker = g_pClientManager->Find(dwFromId);
+	pAttacker->dwLastRecvTime = timeGetTime();
 	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK3", pAttacker->dwID);
 	GetSectorAround(shY, shX, &attackerSectorAround);
 	dwPacketSize = MAKE_SC_ATTACK(dwFromId, pAttacker->byViewDir, shX, shY, 3);
@@ -431,7 +451,11 @@ BOOL CSProc::CS_ATTACK3(DWORD dwFromId, BYTE byViewDir, SHORT shX, SHORT shY)
 	}
 	goto lb_return;
 lb_find: // 피격대상자 HP깎고 피격자 근처 섹터에 데미지 메시지 날리기
-	pVictim->chHp -= dfATTACK1_DAMAGE;
+	pVictim->chHp -= dfATTACK3_DAMAGE;
+	if (pVictim->chHp <= 0)
+	{
+		g_pDisconnectManager->RegisterId(pVictim->dwID);
+	}
 	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u", pVictim->dwID, pAttacker->dwID);
 	GetSectorAround(pVictim->shY, pVictim->shX, &victimSectorAround);
 	dwPacketSize = MAKE_SC_DAMAGE(dwFromId, pVictim->dwID, pVictim->chHp);
@@ -444,6 +468,14 @@ lb_return:
 BOOL CSProc::CS_ECHO(DWORD dwFromId, DWORD dwTime)
 {
 	DWORD dwPacketSize;
+	st_Client* pClient;
+
+	// 끊길 유저 걸러내기
+	if (g_pDisconnectManager->IsDeleted(dwFromId))
+		return FALSE;
+
+	pClient = g_pClientManager->Find(dwFromId);
+	pClient->dwLastRecvTime = timeGetTime();
 	dwPacketSize = MAKE_SC_ECHO(dwTime);
 	EnqPacketUnicast(dwFromId, g_sb.GetBufferPtr(), dwPacketSize);
 	g_sb.Clear();

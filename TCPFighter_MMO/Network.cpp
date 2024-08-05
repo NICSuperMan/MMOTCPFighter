@@ -25,8 +25,8 @@
 #pragma comment(lib,"ws2_32.lib")
 SOCKET g_listenSock;
 
-SHORT g_dwID = 0;
-SHORT g_dwUserNum = 0;
+DWORD g_dwID = 0;
+DWORD g_dwUserNum = 0;
 SerializeBuffer g_sb;
 SessionManager* g_pSessionManager;
 DisconnectManager* g_pDisconnectManager;
@@ -138,16 +138,15 @@ BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
 
 	pSendRB = &(pSession->sendBuffer);
 
-
 	// 8989 µð¹ö±ë
-	for (int i = 0; i < packetSize; ++i)
-	{
-		if (i == packetSize - 1)
-			continue;
+	//for (int i = 0; i < packetSize; ++i)
+	//{
+	//	if (i == packetSize - 1)
+	//		continue;
 
-		if ((pPacket[i] & 0xFF) == (pPacket[i + 1] & 0xFF) == 0x89)
-			__debugbreak();
-	}
+	//	if ((pPacket[i] & 0xFF) == ((pPacket[i + 1] & 0xFF) == 0x89))
+	//		__debugbreak();
+	//}
 
 	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
@@ -218,7 +217,7 @@ BOOL AcceptProc()
 	SOCKADDR_IN clientAddr;
 	BOOL bRet;
 	int addrlen;
-	SHORT dwNewID;
+	DWORD dwNewID;
 	WCHAR szIpAddr[MAX_PATH];
 	st_Session* pNewSession;
 	st_Client* pNewClient;
@@ -301,7 +300,7 @@ BOOL NetworkProc()
 	fd_set writeSet;
 	st_Session* pSession;
 	st_Session* pSessionArrForSelect[FD_SETSIZE - 1];
-	SHORT dwSockCount;
+	DWORD dwSockCount;
 	dwSockCount = 0;
 
 	FD_ZERO(&readSet);
@@ -312,9 +311,6 @@ BOOL NetworkProc()
 	pSession = g_pSessionManager->GetFirst();
 	while (pSession)
 	{
-		//if (g_pDisconnectManager->IsDeleted(pSession->id))
-		//	__debugbreak();
-
 		FD_SET(pSession->clientSock, &readSet);
 		if (pSession->sendBuffer.GetUseSize() > 0)
 		{
@@ -412,18 +408,6 @@ void SendProc(st_Session* pSession)
 		}
 
 		char* temp = pSendRB->GetReadStartPtr();
-		//pSendRB->Peek(iSendSize, pTemp + idx);
-		//idx += iSendSize;
-		//for (int i = 0; i < iSendSize; ++i)
-		//{
-		//	if (i == iSendSize - 1)
-		//		continue;
-		//	if ((pTemp[i] & 0xFF) == (pTemp[i + 1] & 0xFF) == 0x89)
-		//	{
-		//		printf("Debug Send Binary ID %u : ",pSession->id);
-		//		__debugbreak();
-		//	}
-		//}
 		iSendRet = send(pSession->clientSock, pSendRB->GetReadStartPtr(), iSendSize, 0);
 		if (iSendRet == SOCKET_ERROR)
 		{
@@ -438,25 +422,10 @@ void SendProc(st_Session* pSession)
 				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
 			}
 		}
-		//_LOG(dwLog_LEVEL_DEBUG, L"session ID : %d\tsend size : %d\tsendRB DirectDequeueSize : %d#", pSession->id, iSendSize, pSendRB->DirectDequeueSize());
 		pSendRB->MoveFront(iSendSize);
-		//if (pSendRB->front_ == 993)
-		//{
-		//	IsCatch = TRUE;
-		//}
 		iUseSize = pSendRB->GetUseSize();
 		iDirectDeqSize = pSendRB->DirectDequeueSize();
 	}
-	//printf("print Binary : %d\n",pSession->id);
-	//for (int i = 0; i < idx; ++i)
-	//{
-	//	printf("%x ", pTemp[i] & 0xFF);
-	//	if (i + 1 != idx && ((pTemp[i + 1] & 0XFF) == (pTemp[i] & 0xFF) == 0x89))
-	//		__debugbreak();
-	//	if (i + 1 != idx && ((pTemp[i + 1] & 0xFF) == 0x89))
-	//		printf("\n");
-	//}
-	//printf("\n");
 }
 
 BOOL RecvProc(st_Session* pSession)

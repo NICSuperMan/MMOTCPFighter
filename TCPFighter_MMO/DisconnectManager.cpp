@@ -71,7 +71,6 @@ BOOL DisconnectManager::IsDeleted(unsigned id)
 {
 	st_ID* pFindRet;
 	DWORD dwFindRet;
-	BOOL bRet;
 	dwFindRet = hash_.Find((void**)&pFindRet, 1, (const void*)id, sizeof(id));
 	if (dwFindRet > 1)
 	{

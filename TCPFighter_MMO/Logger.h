@@ -9,15 +9,6 @@ extern WCHAR g_szLogBuff[1024];
 
 void Log(const WCHAR* pszString, int iLogLevel);
 
-//#define _LOG(LogLevel,format,...)\
-//do{\
-//	if(g_iLogLevel <= LogLevel)\
-//	{\
-//		wsprintf(g_szLogBuff, format,##__VA_ARGS__);\
-//		Log(g_szLogBuff,LogLevel);\
-//	}\
-//}while(0)\
-
 #define _LOG(LogLevel, fmt, ...)                  \
 do{                                          \
    if(g_iLogLevel <= LogLevel)                     \

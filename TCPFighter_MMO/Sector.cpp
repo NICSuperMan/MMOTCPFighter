@@ -10,6 +10,7 @@
 #include "ClientManager.h"
 #include "Logger.h"
 #include "Network.h"
+#include <stdio.h>
 
 extern ClientManager* g_pClientManager;
 
@@ -17,18 +18,18 @@ st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
 
 
 
-void GetSectorAround(SHORT dwPosY, SHORT dwPosX, st_SECTOR_AROUND* pOutSectorAround)
+void GetSectorAround(SHORT shPosY, SHORT shPosX, st_SECTOR_AROUND* pOutSectorAround)
 {
 	int iSectorY;
 	int iSectorX;
 	int iAroundSectorY;
 	int iAroundSectorX;
-	SHORT* pdwCount;
+	SHORT* pCount;
 	
-	iSectorY = dwPosY / df_SECTOR_HEIGHT;
-	iSectorX = dwPosX / df_SECTOR_WIDTH;
-	pdwCount = (SHORT*)((char*)pOutSectorAround + offsetof(st_SECTOR_AROUND, byCount));
-	*pdwCount = 0;
+	iSectorY = shPosY / df_SECTOR_HEIGHT;
+	iSectorX = shPosX / df_SECTOR_WIDTH;
+	pCount = (SHORT*)((char*)pOutSectorAround + offsetof(st_SECTOR_AROUND, byCount));
+	*pCount = 0;
 
 	for (int dy = -1; dy <= 1; ++dy)
 	{
@@ -38,9 +39,9 @@ void GetSectorAround(SHORT dwPosY, SHORT dwPosX, st_SECTOR_AROUND* pOutSectorAro
 			iAroundSectorX = iSectorX + dx;
 			if (IsValidSector(iAroundSectorY, iAroundSectorX))
 			{
-				pOutSectorAround->Around[*pdwCount].shY = iAroundSectorY;
-				pOutSectorAround->Around[*pdwCount].shX = iAroundSectorX;
-				++(*pdwCount);
+				pOutSectorAround->Around[*pCount].shY = iAroundSectorY;
+				pOutSectorAround->Around[*pCount].shX = iAroundSectorX;
+				++(*pCount);
 			}
 		}
 	}
@@ -98,6 +99,14 @@ void AddClientAtSector(st_Client* pClient,SHORT shNewSectorY, SHORT shNewSectorX
 	LinkToLinkedListLast(&(g_Sector[shNewSectorY][shNewSectorX].pClientLinkHead), &(g_Sector[shNewSectorY][shNewSectorX].pClientLinkTail), &(pClient->SectorLink));
 	++(g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient);
 	_LOG(dwLog_LEVEL_ERROR, L"NewClient In Sector X : %d, Y : %d, ClientNum In Sector : %d", shNewSectorX, shNewSectorY, g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient);
+//#ifdef _DEBUG
+//	pClient = LinkToClient(g_Sector[shNewSectorY][shNewSectorX].pClientLinkHead);
+//	for (int i = 0; i < g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient; ++i)
+//	{
+//		printf("ID : %u, Sector X : %d, Y : %d\n", pClient->dwID, shNewSectorX, shNewSectorY);
+//		pClient = LinkToClient(pClient->SectorLink.pNext);
+//	}
+//#endif
 }
 
 void RemoveClientAtSector(st_Client* pClient, SHORT shOldSectorY, SHORT shOldSectorX)
@@ -105,4 +114,12 @@ void RemoveClientAtSector(st_Client* pClient, SHORT shOldSectorY, SHORT shOldSec
 	UnLinkFromLinkedList(&(g_Sector[shOldSectorY][shOldSectorX].pClientLinkHead), &(g_Sector[shOldSectorY][shOldSectorX].pClientLinkTail), &(pClient->SectorLink));
 	--(g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient);
 	_LOG(dwLog_LEVEL_ERROR, L"Client removed from Sector X : %d, Y : %d, ClientNum In Sector : %d", shOldSectorX, shOldSectorY, g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient);
+//#ifdef _DEBUG
+//	pClient = LinkToClient(g_Sector[shOldSectorY][shOldSectorX].pClientLinkHead);
+//	for (int i = 0; i < g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient; ++i)
+//	{
+//		printf("ID : %u, Sector X : %d, Y : %d\n", pClient->dwID, shOldSectorX, shOldSectorY);
+//		pClient = LinkToClient(pClient->SectorLink.pNext);
+//	}
+//#endif 
 }

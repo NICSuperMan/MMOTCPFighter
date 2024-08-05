@@ -6,6 +6,7 @@ struct st_Client
 	st_Session* pSession;
 	DWORD dwID;
 	DWORD dwAction;
+	DWORD dwLastRecvTime;
 	SHORT shX;
 	SHORT shY;
 	BYTE byViewDir;

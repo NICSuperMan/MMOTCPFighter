@@ -17,7 +17,7 @@ struct BUCKET_DESCRIPTOR
 	LINKED_NODE link;
 	LINKED_NODE* pBucketLinkHead = nullptr;
 	LINKED_NODE* pBucketLinkTail = nullptr;
-	SHORT	dwLinkNodeNum = 0;
+	DWORD dwLinkNodeNum = 0;
 };
 
 /*

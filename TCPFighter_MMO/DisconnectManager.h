@@ -27,7 +27,7 @@ private:
 		STATIC_HASH_METADATA shm;
 	};
 	CStaticHashTable hash_;
-	SHORT dwIdNum_ = 0;
+	DWORD dwIdNum_ = 0;
 	MEMORYPOOL mp_;
 };
 

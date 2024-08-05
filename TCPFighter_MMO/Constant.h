@@ -64,3 +64,5 @@ constexpr int df_SECTOR_HEIGHT = 160;
 constexpr int dwNumOfSectorHorizon = dfRANGE_MOVE_RIGHT / df_SECTOR_WIDTH;
 constexpr int dwNumOfSectorVertical = dfRANGE_MOVE_BOTTOM / df_SECTOR_HEIGHT;
 
+constexpr DWORD dwTimeOut = 30 * 1000;
+

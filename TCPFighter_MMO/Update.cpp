@@ -60,17 +60,17 @@ void SectorUpdateAndNotify(st_Client* pClient, BYTE byMoveDir, SHORT shOldSector
 		for (BYTE i = 0; i < removeSectorAround.byCount; ++i)
 		{
 			dwPacketSize = MAKE_SC_DELETE_CHARACTER(dwID); 
-			//_LOG(dwLog_LEVEL_DEBUG, L"Notify Remove Character ID : %u To SECTOR X : %d, Y : %d", dwID, removeSectorAround.Around[i].shX, removeSectorAround.Around[i].shY);
+			_LOG(dwLog_LEVEL_DEBUG, L"Notify Remove Character ID : %u To SECTOR X : %d, Y : %d", dwID, removeSectorAround.Around[i].shX, removeSectorAround.Around[i].shY);
 			SendPacket_SectorOne(&removeSectorAround.Around[i], g_sb.GetBufferPtr(), dwPacketSize, nullptr);
 			g_sb.Clear();
 			pSCI = &g_Sector[removeSectorAround.Around[i].shY][removeSectorAround.Around[i].shX];
 
 			// 움직이는 캐릭터의 시야에서 없어진 섹터에 존재하는 캐릭터들도 지워야함.
+			pCurLink = pSCI->pClientLinkHead;
 			for (DWORD i = 0; i < pSCI->dwNumOfClient; ++i)
 			{
-				pCurLink = pSCI->pClientLinkHead;
 				pRemovedClient = LinkToClient(pCurLink);
-			//	_LOG(dwLog_LEVEL_ERROR, L"Notify Remove Character ID : %u -> ID : %u ", pRemovedClient->dwID, dwID);
+				_LOG(dwLog_LEVEL_ERROR, L"Notify Remove Character ID : %u -> ID : %u ", pRemovedClient->dwID, dwID);
 				dwPacketSize = MAKE_SC_DELETE_CHARACTER(pRemovedClient->dwID);
 				EnqPacketUnicast(dwID, g_sb.GetBufferPtr(), dwPacketSize);
 				g_sb.Clear();
@@ -87,18 +87,24 @@ void SectorUpdateAndNotify(st_Client* pClient, BYTE byMoveDir, SHORT shOldSector
 		for (BYTE i = 0; i < pOutNewAround->byCount; ++i)
 		{
 			dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(dwID, pClient->byViewDir, shX, shY, pClient->chHp);
-			//_LOG(dwLog_LEVEL_DEBUG, L"Notify Create Character ID : %u To SECTOR X : %d, Y : %d", dwID, pOutNewAround->Around[i].shX, pOutNewAround->Around[i].shY);
+			_LOG(dwLog_LEVEL_DEBUG, L"Notify Create Character ID : %u To SECTOR X : %d, Y : %d", dwID, pOutNewAround->Around[i].shX, pOutNewAround->Around[i].shY);
 			SendPacket_SectorOne(&pOutNewAround->Around[i], g_sb.GetBufferPtr(), dwPacketSize, nullptr);
 			g_sb.Clear();
 			pSCI = &g_Sector[pOutNewAround->Around[i].shY][pOutNewAround->Around[i].shX];
+			pCurLink = pSCI->pClientLinkHead;
 			for (DWORD i = 0; i < pSCI->dwNumOfClient; ++i)
 			{
-				pCurLink = pSCI->pClientLinkHead;
 				pNewClient = LinkToClient(pCurLink);
-				//_LOG(dwLog_LEVEL_ERROR, L"Notify New Character ID : %u -> ID : %u ", pNewClient->dwID, dwID);
+				_LOG(dwLog_LEVEL_ERROR, L"Notify New Already Character ID : %u -> ID : %u ", pNewClient->dwID, dwID);
 				dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(pNewClient->dwID, pNewClient->byViewDir, pNewClient->shX, pNewClient->shY, pNewClient->chHp);
 				EnqPacketUnicast(pClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
 				g_sb.Clear();
+				if (pNewClient->dwAction == MOVE)
+				{
+					dwPacketSize = MAKE_SC_MOVE_START(pNewClient->dwID, pNewClient->byMoveDir, pNewClient->shX, pNewClient->shY);
+					EnqPacketUnicast(pNewClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
+					g_sb.Clear();
+				}
 				pCurLink = pCurLink->pNext;
 			}
 		}
@@ -124,11 +130,11 @@ void Update()
 	SHORT shNewSectorY;
 	SHORT shNewSectorX;
 	BYTE bySectorMoveDir;
+	DWORD dwTime;
 
 
 	st_DirVector dirVector;
 	st_Client* pClient;
-	st_SECTOR_AROUND removeSectorAround;
 	st_SECTOR_AROUND newSectorAround;
 	DWORD dwPacketSize;
 
@@ -138,6 +144,14 @@ void Update()
 		// 접속이 끊길 예정인 사람 확인
 		if (g_pDisconnectManager->IsDeleted(pClient->dwID))
 			goto lb_next;
+
+		// 타임아웃 처리
+		dwTime = timeGetTime();
+		if (dwTime - pClient->dwLastRecvTime > dwTimeOut)
+		{
+			g_pDisconnectManager->RegisterId(pClient->dwID);
+			goto lb_next;
+		}
 
 		// 죽을때 된사람 죽이기
 		if (pClient->chHp <= 0)

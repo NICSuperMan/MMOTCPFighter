@@ -18,7 +18,7 @@ public:
 	st_Session* Find(unsigned id);
 	BOOL Disconnect(unsigned id);
 	BOOL IsFull();
-	SHORT dwUserNum_ = 0;
+	DWORD dwUserNum_ = 0;
 
 private:
 	CStaticHashTable hash_;

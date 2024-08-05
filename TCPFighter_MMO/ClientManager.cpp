@@ -37,7 +37,7 @@ static BOOL keyCompareFunc(const void* pKeyInHash, const void* pKey)
 
 ClientManager::ClientManager()
 {
-	srand(time(nullptr));
+	srand((unsigned)time(nullptr));
 }
 
 ClientManager::~ClientManager()
@@ -77,13 +77,12 @@ BOOL ClientManager::Initialize()
 
 void ClientManager::RegisterClient(DWORD id, st_Session* pNewSession, st_Client** ppOut)
 {
-	st_Client* pDebug;
-	DWORD dwFindRet;
 	st_Client* pNewClient = (st_Client*)AllocMemoryFromPool(mp_);
 	new(pNewClient)st_Client{};
 	
 	pNewClient->dwID = id;
 	pNewClient->dwAction = NOMOVE;
+	pNewClient->dwLastRecvTime = timeGetTime();
 	//pNewClient->shX = INIT_POS_X;
 	//pNewClient->shY = INIT_POS_Y;
 	pNewClient->shX = (rand() % (dfRANGE_MOVE_RIGHT - 1)) + 1; // 1 ~ 6399
@@ -94,9 +93,13 @@ void ClientManager::RegisterClient(DWORD id, st_Session* pNewSession, st_Client*
 
 	*ppOut = pNewClient;
 
+#ifdef _DEBUG
+	st_Client* pDebug;
+	DWORD dwFindRet;
 	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
-	if (dwFindRet != 0)
+	if (dwFindRet > 0)
 		__debugbreak();
+#endif
 	hash_.Insert((const void*)pNewClient, (const void*)id, sizeof(st_Client::dwID));
 	++dwClientNum_;
 }
@@ -106,10 +109,14 @@ void ClientManager::removeClient(DWORD id)
 	st_Client* pClient;
 	DWORD dwFindRet;
 	dwFindRet = hash_.Find((void**)&pClient, 1, (const void*)id, sizeof(st_Client::dwID));
-	if (!dwFindRet)
+#ifdef _DEBUG
+	// 제거해야하는데 이미 제거되엇으면, 즉 중복제거이면
+	if (dwFindRet <= 0)
 	{
+		__debugbreak();
 		return;
 	}
+#endif
 	removeClient(pClient);
 }
 
