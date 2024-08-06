@@ -37,9 +37,9 @@ void SectorUpdateAndNotify(st_Client* pClient, BYTE byMoveDir, SHORT shOldSector
 	shY = pClient->shY;
 	shX = pClient->shX;
 
-	WCHAR dir[512];
-	GetDirStr(byMoveDir, dir, 512);
-	_LOG(dwLog_LEVEL_ERROR, L"DIR : %s", dir);
+	//WCHAR dir[512];
+	//GetDirStr(byMoveDir, dir, 512);
+	//_LOG(dwLog_LEVEL_ERROR, L"DIR : %s", dir);
 
 	// 섹터 리스트에 갱신
 	RemoveClientAtSector(pClient, shOldSectorY, shOldSectorX);

@@ -71,7 +71,7 @@ BOOL DisconnectManager::IsDeleted(unsigned id)
 {
 	st_ID* pFindRet;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pFindRet, 1, (const void*)id, sizeof(id));
+	dwFindRet = hash_.Find((void**)&pFindRet, 3, (const void*)id, sizeof(id));
 	if (dwFindRet > 1)
 	{
 		__debugbreak();
@@ -89,7 +89,7 @@ void DisconnectManager::RegisterId(unsigned id)
 	st_ID* pDebug;
 	DWORD dwFindRet;
 	pID->id = id;
-	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
+	dwFindRet = hash_.Find((void**)&pDebug, 3, (const void*)id, sizeof(id));
 	if (dwFindRet != 0)
 		__debugbreak();
 	hash_.Insert((const void*)pID, (const void*)id, sizeof(st_ID::id));
@@ -98,8 +98,18 @@ void DisconnectManager::RegisterId(unsigned id)
 
 void DisconnectManager::removeID(unsigned* pID)
 {
+	st_ID* pDebug;
 	st_ID* pSt_ID;
+	DWORD dwFindRet;
 	pSt_ID = (st_ID*)(pID - offsetof(st_ID, id));
+	dwFindRet = hash_.Find((void**)&pDebug, 3, (const void*)*pID, sizeof(*pID));
+	// 없는거 삭제
+	if (!dwFindRet)
+		__debugbreak();
+
+	// 이미 여러개 들어잇음
+	if (dwFindRet > 1)
+		__debugbreak();
 	hash_.Delete((const void*)pSt_ID);
 	--dwIdNum_;
 	RetMemoryToPool(mp_, pSt_ID);

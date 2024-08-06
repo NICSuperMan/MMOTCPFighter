@@ -67,13 +67,12 @@ SessionManager::~SessionManager()
 void SessionManager::RegisterSession(unsigned id, SOCKET socket, st_Session** ppOut)
 {
 	st_Session* pNewSession;
-//#ifdef _DEBUG
-	// 이미 들어잇음
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pNewSession, 1, (const void*)id, sizeof(id));
+
+	dwFindRet = hash_.Find((void**)&pNewSession, 3, (const void*)id, sizeof(id));
+	// 이미 들어잇음
 	if (dwFindRet != 0)
 		__debugbreak();
-//#endif
 	pNewSession = (st_Session*)AllocMemoryFromPool(mp_);
 	new(pNewSession)st_Session{ socket,id };
 	*ppOut = pNewSession;
@@ -85,11 +84,11 @@ void SessionManager::removeSession(unsigned id)
 {
 	st_Session* pSession;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pSession, 2, (const void*)id, sizeof(id));
+	dwFindRet = hash_.Find((void**)&pSession, 3, (const void*)id, sizeof(id));
 	// 중복해서 들어잇음
 	if (dwFindRet > 1)
 		__debugbreak();
-	// 없음 - 중복삭제 
+	// 찾앗는데 없는 경우는 이미 삭제된것인데 이 함수에 진입햇다는거 자체가 다시 삭제하려하는것이믈 중복삭제에 해당됨
 	if (dwFindRet <= 0)
 	{
 		__debugbreak();
@@ -132,9 +131,13 @@ st_Session* SessionManager::Find(unsigned id)
 	st_Session* pRet;
 	DWORD dwFindRet;
 	
-	dwFindRet = hash_.Find((void**)&pRet, 2, (const void**)(id), sizeof(st_Session::id));
+	dwFindRet = hash_.Find((void**)&pRet, 3, (const void**)(id), sizeof(st_Session::id));
+
+	// 여러개가 들어잇음 말이안됨
 	if (dwFindRet > 1)
 		__debugbreak();
+
+	// 이미 삭제 매니저에 등록되지 않음이 전제라서 없는게 말이안됨
 	if (!dwFindRet)
 	{
 		return nullptr;

@@ -384,7 +384,6 @@ void SendProc(st_Session* pSession)
 	//	__debugbreak();
 	iUseSize = pSendRB->GetUseSize();
 	iDirectDeqSize = pSendRB->DirectDequeueSize();
-	//printf("First Calc iUseSize : %d, iDirectDeqSize : %d\n", iUseSize, iDirectDeqSize);
 	while (iUseSize > 0)
 	{
 		// directDeqSize가 0이거나 useSize < directDeqSize라면 sendSize == useSize이어야 하기 때문이다.
@@ -411,6 +410,8 @@ void SendProc(st_Session* pSession)
 			{
 				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
 			}
+			// 여기서 리턴 안해서 중복으로 삭제 매니저에 id가 중복등록됨
+			return;
 		}
 		pSendRB->MoveFront(iSendSize);
 		iUseSize = pSendRB->GetUseSize();

@@ -95,7 +95,7 @@ void ClientManager::RegisterClient(DWORD id, st_Session* pNewSession, st_Client*
 
 	st_Client* pDebug;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
+	dwFindRet = hash_.Find((void**)&pDebug, 3, (const void*)id, sizeof(id));
 	//이미잇음
 	if (dwFindRet > 0)
 		__debugbreak();
@@ -108,9 +108,9 @@ void ClientManager::removeClient(DWORD id)
 {
 	st_Client* pClient;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pClient, 1, (const void*)id, sizeof(st_Client::dwID));
+	dwFindRet = hash_.Find((void**)&pClient, 3, (const void*)id, sizeof(st_Client::dwID));
 	// 여러개잇으며
-	if (dwFindRet > 2)
+	if (dwFindRet > 1)
 		__debugbreak();
 	// 제거해야하는데 이미 제거되엇으면, 즉 중복제거이면
 	if (dwFindRet <= 0)
@@ -147,10 +147,11 @@ st_Client* ClientManager::Find(DWORD dwID)
 	st_Client* pRet;
 	DWORD dwFindRet;
 
-	dwFindRet = hash_.Find((void**)&pRet, 2, (const void**)dwID, sizeof(st_Client::dwID));
+	dwFindRet = hash_.Find((void**)&pRet, 3, (const void**)dwID, sizeof(st_Client::dwID));
 	// 여러개잇음
 	if (dwFindRet > 1)
 		__debugbreak();
+	// 삭제 매니저에 없는경우 찾기때문에 없는게 로직상 말이안됨
 	if (!dwFindRet)
 	{
 		__debugbreak();
