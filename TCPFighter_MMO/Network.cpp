@@ -32,6 +32,7 @@ SessionManager* g_pSessionManager;
 DisconnectManager* g_pDisconnectManager;
 ClientManager* g_pClientManager;
 extern int g_iDisconCount;
+extern int g_iDisConByRBFool;
 
 void SendProc(st_Session* pSession);
 BOOL RecvProc(st_Session* pSession);
@@ -141,7 +142,7 @@ BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
 	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
 	{
-		_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %u\tsendRingBuffer Full\t", dwID);
+		++g_iDisConByRBFool;
 		g_pDisconnectManager->RegisterId(dwID);
 		goto lb_return;
 	}
@@ -207,6 +208,7 @@ BOOL AcceptProc()
 	SOCKADDR_IN clientAddr;
 	BOOL bRet;
 	int addrlen;
+	// 이거 SHORT로 만들어서 터짐
 	DWORD dwNewID;
 	WCHAR szIpAddr[MAX_PATH];
 	st_Session* pNewSession;
@@ -359,9 +361,6 @@ BOOL NetworkProc()
 }
 
 
-int g_before;
-int g_after;
-BOOL IsCatch = FALSE;
 char* pTemp = new char[20000];
 
 void SendProc(st_Session* pSession)
@@ -380,8 +379,6 @@ void SendProc(st_Session* pSession)
 		return;
 
 	pSendRB = &(pSession->sendBuffer);
-	//if (IsCatch)
-	//	__debugbreak();
 	iUseSize = pSendRB->GetUseSize();
 	iDirectDeqSize = pSendRB->DirectDequeueSize();
 	while (iUseSize > 0)

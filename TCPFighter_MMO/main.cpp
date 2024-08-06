@@ -38,6 +38,7 @@ BOOL g_bShutDown = FALSE;
 int g_iSyncCount = 0;
 int g_iDisconCount = 0;
 int g_iNetworkLoop = 0;
+int g_iDisConByRBFool = 0;
 
 void ServerControl(void)
 {
@@ -120,12 +121,15 @@ int main()
 		if (iTime - iFpsCheck >= 1000)
 		{
 			iFpsCheck += 1000;
+			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
 			_LOG(dwLog_LEVEL_SYSTEM, L"FPS : %d", iFPS);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Network Loop Num: %u", g_iNetworkLoop);
 			_LOG(dwLog_LEVEL_SYSTEM, L"SyncCount : %d", g_iSyncCount);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count : %d", g_iDisconCount);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_pClientManager->dwClientNum_);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Session Number : %u", g_pSessionManager->dwUserNum_);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnected By RingBuffer FOOL : %u", g_iDisConByRBFool);
+			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
 			g_iSyncCount = 0;
 			g_iDisconCount = 0;
 			g_iNetworkLoop = 0;
