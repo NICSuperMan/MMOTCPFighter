@@ -138,16 +138,6 @@ BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
 
 	pSendRB = &(pSession->sendBuffer);
 
-	// 8989 µð¹ö±ë
-	//for (int i = 0; i < packetSize; ++i)
-	//{
-	//	if (i == packetSize - 1)
-	//		continue;
-
-	//	if ((pPacket[i] & 0xFF) == ((pPacket[i + 1] & 0xFF) == 0x89))
-	//		__debugbreak();
-	//}
-
 	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
 	{
@@ -267,7 +257,7 @@ __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_se
 	if (iSelectRet == SOCKET_ERROR)
 	{
 		_LOG(dwLog_LEVEL_DEBUG, L"Select Func Error Code : %d", WSAGetLastError());
-		//__debugbreak();
+		__debugbreak();
 		return;
 	}
 

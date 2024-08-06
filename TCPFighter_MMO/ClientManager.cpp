@@ -93,13 +93,13 @@ void ClientManager::RegisterClient(DWORD id, st_Session* pNewSession, st_Client*
 
 	*ppOut = pNewClient;
 
-#ifdef _DEBUG
 	st_Client* pDebug;
 	DWORD dwFindRet;
 	dwFindRet = hash_.Find((void**)&pDebug, 1, (const void*)id, sizeof(id));
+	//이미잇음
 	if (dwFindRet > 0)
 		__debugbreak();
-#endif
+
 	hash_.Insert((const void*)pNewClient, (const void*)id, sizeof(st_Client::dwID));
 	++dwClientNum_;
 }
@@ -109,14 +109,15 @@ void ClientManager::removeClient(DWORD id)
 	st_Client* pClient;
 	DWORD dwFindRet;
 	dwFindRet = hash_.Find((void**)&pClient, 1, (const void*)id, sizeof(st_Client::dwID));
-#ifdef _DEBUG
+	// 여러개잇으며
+	if (dwFindRet > 2)
+		__debugbreak();
 	// 제거해야하는데 이미 제거되엇으면, 즉 중복제거이면
 	if (dwFindRet <= 0)
 	{
 		__debugbreak();
 		return;
 	}
-#endif
 	removeClient(pClient);
 }
 
@@ -146,7 +147,10 @@ st_Client* ClientManager::Find(DWORD dwID)
 	st_Client* pRet;
 	DWORD dwFindRet;
 
-	dwFindRet = hash_.Find((void**)&pRet, 1, (const void**)dwID, sizeof(st_Client::dwID));
+	dwFindRet = hash_.Find((void**)&pRet, 2, (const void**)dwID, sizeof(st_Client::dwID));
+	// 여러개잇음
+	if (dwFindRet > 1)
+		__debugbreak();
 	if (!dwFindRet)
 	{
 		__debugbreak();

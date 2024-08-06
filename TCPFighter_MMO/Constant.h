@@ -1,5 +1,5 @@
 #pragma once
-#define SERVERPORT  20000
+#define SERVERPORT  11402
 #define dfPACKET_CODE		0x89
 constexpr BYTE dfPACKET_MOVE_DIR_LL = 0;
 constexpr BYTE dfPACKET_MOVE_DIR_LU = 1;

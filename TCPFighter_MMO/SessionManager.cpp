@@ -67,12 +67,13 @@ SessionManager::~SessionManager()
 void SessionManager::RegisterSession(unsigned id, SOCKET socket, st_Session** ppOut)
 {
 	st_Session* pNewSession;
-#ifdef _DEBUG
+//#ifdef _DEBUG
+	// 이미 들어잇음
 	DWORD dwFindRet;
 	dwFindRet = hash_.Find((void**)&pNewSession, 1, (const void*)id, sizeof(id));
 	if (dwFindRet != 0)
 		__debugbreak();
-#endif
+//#endif
 	pNewSession = (st_Session*)AllocMemoryFromPool(mp_);
 	new(pNewSession)st_Session{ socket,id };
 	*ppOut = pNewSession;
@@ -84,7 +85,11 @@ void SessionManager::removeSession(unsigned id)
 {
 	st_Session* pSession;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pSession, 1, (const void*)id, sizeof(id));
+	dwFindRet = hash_.Find((void**)&pSession, 2, (const void*)id, sizeof(id));
+	// 중복해서 들어잇음
+	if (dwFindRet > 1)
+		__debugbreak();
+	// 없음 - 중복삭제 
 	if (dwFindRet <= 0)
 	{
 		__debugbreak();
@@ -127,7 +132,9 @@ st_Session* SessionManager::Find(unsigned id)
 	st_Session* pRet;
 	DWORD dwFindRet;
 	
-	dwFindRet = hash_.Find((void**)&pRet, 1, (const void**)(id), sizeof(st_Session::id));
+	dwFindRet = hash_.Find((void**)&pRet, 2, (const void**)(id), sizeof(st_Session::id));
+	if (dwFindRet > 1)
+		__debugbreak();
 	if (!dwFindRet)
 	{
 		return nullptr;
@@ -140,8 +147,8 @@ BOOL SessionManager::Disconnect(unsigned id)
 {
 	st_Session* pSession;
 	DWORD dwFindRet;
-	dwFindRet = hash_.Find((void**)&pSession, 1, (const void**)(id), sizeof(pSession->id));
-	if (!dwFindRet)
+	dwFindRet = hash_.Find((void**)&pSession, 2, (const void**)(id), sizeof(pSession->id));
+	if (dwFindRet > 0 || dwFindRet == 0)
 	{
 		__debugbreak();
 		return FALSE;
