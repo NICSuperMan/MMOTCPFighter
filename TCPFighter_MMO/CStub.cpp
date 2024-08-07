@@ -143,12 +143,7 @@ BOOL CSProc::CS_MOVE_START(DWORD dwFromId, BYTE byMoveDir, SHORT shX, SHORT shY)
 		break;
 	}
 
-	WCHAR ClientOwnDir[512];
-	WCHAR ServerOwnDir[512];
-	GetDirStr(byMoveDir, ClientOwnDir,512);
-	GetDirStr(pClient->byMoveDir, ServerOwnDir,512);
 	_LOG(dwLog_LEVEL_ERROR, L"CS_MOVE_START ID : %u, STOP POS X : %d, Y : %d", dwFromId, shX, shY);
-	//_LOG(dwLog_LEVEL_ERROR, L"Server Dir : %s, Client Dir : %s", ServerOwnDir, ClientOwnDir);
 
 	// 오차가 dfERROR_RANGE 이상이면 서버가 알던 좌표로 싱크 맞추기
 	//if (abs(shServerX - shX) > dfERROR_RANGE || abs(shServerY - shY) > dfERROR_RANGE)

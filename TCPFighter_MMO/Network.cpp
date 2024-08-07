@@ -361,7 +361,6 @@ BOOL NetworkProc()
 }
 
 
-char* pTemp = new char[20000];
 
 void SendProc(st_Session* pSession)
 {

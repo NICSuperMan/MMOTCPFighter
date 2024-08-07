@@ -15,7 +15,7 @@ extern SerializeBuffer g_sb;
 
 extern st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
 
-
+extern int g_iDisConByTimeOut;
 
 
 void GetDirStr(BYTE byMoveDir, WCHAR* pDir, int len);
@@ -36,10 +36,6 @@ void SectorUpdateAndNotify(st_Client* pClient, BYTE byMoveDir, SHORT shOldSector
 	dwID = pClient->dwID;
 	shY = pClient->shY;
 	shX = pClient->shX;
-
-	//WCHAR dir[512];
-	//GetDirStr(byMoveDir, dir, 512);
-	//_LOG(dwLog_LEVEL_ERROR, L"DIR : %s", dir);
 
 	// 섹터 리스트에 갱신
 	RemoveClientAtSector(pClient, shOldSectorY, shOldSectorX);
@@ -149,6 +145,7 @@ void Update()
 		dwTime = timeGetTime();
 		if (dwTime - pClient->dwLastRecvTime > dwTimeOut)
 		{
+			++g_iDisConByTimeOut;
 			g_pDisconnectManager->RegisterId(pClient->dwID);
 			goto lb_next;
 		}

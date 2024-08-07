@@ -39,6 +39,7 @@ int g_iSyncCount = 0;
 int g_iDisconCount = 0;
 int g_iNetworkLoop = 0;
 int g_iDisConByRBFool = 0;
+int g_iDisConByTimeOut = 0;
 
 void ServerControl(void)
 {
@@ -91,11 +92,9 @@ int main()
 	int iFpsCheck;
 	int iTime;
 	int iFPS;
-#ifdef _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, GetStdHandle(STD_OUTPUT_HANDLE));
-#endif
 	srand((unsigned)time(nullptr));
 	timeBeginPeriod(1);
 	if (!NetworkInitAndListen())
@@ -109,11 +108,11 @@ int main()
 
 	while (!g_bShutDown)
 	{
-		NetworkProc();
-
 		iTime = timeGetTime();
 		if (iTime - iOldFrameTick >= TICK_PER_FRAME)
 		{
+			NetworkProc();
+			++g_iNetworkLoop;
 			Update();
 			iOldFrameTick += TICK_PER_FRAME;
 			++iFPS;
@@ -126,17 +125,14 @@ int main()
 			_LOG(dwLog_LEVEL_SYSTEM, L"Network Loop Num: %u", g_iNetworkLoop);
 			_LOG(dwLog_LEVEL_SYSTEM, L"SyncCount : %d", g_iSyncCount);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count : %d", g_iDisconCount);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_pClientManager->dwClientNum_);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Session Number : %u", g_pSessionManager->dwUserNum_);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count By TimeOut : %d", g_iDisConByTimeOut);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnected By RingBuffer FOOL : %u", g_iDisConByRBFool);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_pClientManager->dwClientNum_);
 			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
-			g_iSyncCount = 0;
-			g_iDisconCount = 0;
 			g_iNetworkLoop = 0;
 			iFPS = 0;
 		}
 		ServerControl();
-		++g_iNetworkLoop;
 	}
 	//ClearSessionInfo();
 	timeEndPeriod(1);
