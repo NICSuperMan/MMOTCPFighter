@@ -1,125 +1,108 @@
-#include <Windows.h>
-#include "Constant.h"
-#include "LinkedList.h"
-#include "HashTable.h"
-#include "RingBuffer.h"
-#include "MemoryPool.h"
-#include "Session.h"
-#include "Client.h"
 #include "Sector.h"
-#include "ClientManager.h"
 #include "Logger.h"
-#include "Network.h"
-#include <stdio.h>
+#include <emmintrin.h>
 
-extern ClientManager* g_pClientManager;
 
 st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
+AroundInfo g_AroundInfo;
 
 
-
-void GetSectorAround(SHORT shPosY, SHORT shPosX, st_SECTOR_AROUND* pOutSectorAround)
+void GetSectorAround(SectorPos CurSector, st_SECTOR_AROUND* pOutSectorAround)
 {
-	int iSectorY;
-	int iSectorX;
-	int iAroundSectorY;
-	int iAroundSectorX;
 	SHORT* pCount;
-	
-	iSectorY = shPosY / df_SECTOR_HEIGHT;
-	iSectorX = shPosX / df_SECTOR_WIDTH;
 	pCount = (SHORT*)((char*)pOutSectorAround + offsetof(st_SECTOR_AROUND, byCount));
 	*pCount = 0;
 
-	for (int dy = -1; dy <= 1; ++dy)
+	// posX, posY에 pos의 좌표값 담기
+	__m128i posY = _mm_set1_epi16(CurSector.shY);
+	__m128i posX = _mm_set1_epi16(CurSector.shX);
+
+	// 8방향 방향벡터 X성분 Y성분 준비
+	__m128i DirVY = _mm_set_epi16(+1, +1, +1, +0, -1, -1, -1, +0);
+	__m128i DirVX = _mm_set_epi16(-1, +0, +1, +1, +1, +0, -1, -1);
+
+	// 더한다
+	posX = _mm_add_epi16(posX, DirVX);
+	posY = _mm_add_epi16(posY, DirVY);
+
+	__m128i min = _mm_set1_epi16(-1);
+	__m128i max = _mm_set1_epi16(df_SECTOR_HEIGHT);
+
+	__m128i cmpMin = _mm_cmpgt_epi16(posX, min);
+	__m128i cmpMax = _mm_cmplt_epi16(posX, max);
+	__m128i result = _mm_and_si128(cmpMin, cmpMax);
+	SHORT maskX = _mm_movemask_epi8(result);
+
+	SHORT X[8];
+	_mm_storeu_si128((__m128i*)X, posX);
+
+	SHORT Y[8];
+	cmpMin = _mm_cmpgt_epi16(posY, min);
+	cmpMax = _mm_cmplt_epi16(posY, max);
+	result = _mm_and_si128(cmpMin, cmpMax);
+	SHORT maskY = _mm_movemask_epi8(result);
+	_mm_storeu_si128((__m128i*)Y, posY);
+
+	SHORT temp = 2;
+	SHORT ret = maskX & maskY;
+	pOutSectorAround->Around[0].shY = CurSector.shY;
+	pOutSectorAround->Around[0].shX = CurSector.shX;
+	++(pOutSectorAround->byCount);
+
+	for (int i = 0; i < 8; ++i)
 	{
-		for (int dx = -1; dx <= 1; ++dx)
+		if (ret & (temp << i))
 		{
-			iAroundSectorY = iSectorY + dy;
-			iAroundSectorX = iSectorX + dx;
-			if (IsValidSector(iAroundSectorY, iAroundSectorX))
-			{
-				pOutSectorAround->Around[*pCount].shY = iAroundSectorY;
-				pOutSectorAround->Around[*pCount].shX = iAroundSectorX;
-				++(*pCount);
-			}
+			pOutSectorAround->Around[i+1].shY = Y[i+1];
+			pOutSectorAround->Around[i+1].shX = X[i+1];
+			++(pOutSectorAround->byCount);
 		}
 	}
+
 }
 
-
-void GetUpdateSectorAround(st_Client* pClient, st_SECTOR_AROUND* pRemoveSector, st_SECTOR_AROUND* pOutAddSector)
+AroundInfo* GetAroundValidClient(SectorPos sp, st_Client* pExcept)
 {
-	GetSectorAround(pClient->OldSector.shY, pClient->OldSector.shX, pOutAddSector);
-	GetSectorAround(pClient->CurSector.shY, pClient->CurSector.shX, pOutAddSector);
-}
-
-
-void SendPacket_SectorOne(const st_SECTOR_POS* pSectorPos, char* pPacket, DWORD dwPacketSize, const st_Client* pExceptClient)
-{
-	LINKED_NODE* pCurLink;
-	DWORD dwNum;
-	st_Client* pClient;
-
-	if (!IsValidSector(pSectorPos->shY, pSectorPos->shX))
-		return;
-
-	pCurLink = g_Sector[pSectorPos->shY][pSectorPos->shX].pClientLinkHead;
-	dwNum = g_Sector[pSectorPos->shY][pSectorPos->shX].dwNumOfClient;
-
-	for (DWORD i = 0; i < dwNum; ++i)
+	SectorPos temp;
+	int iNum = 0;
+	for (int i = 0; i < 9; ++i)
 	{
-		if (!pCurLink)
-			break;
-		
-		pClient = LinkToClient(pCurLink);
-		if (pClient != pExceptClient)
-		{
-			_LOG(dwLog_LEVEL_DEBUG, L"SendPacket To Client %d", pClient->dwID);
-			EnqPacketUnicast(pClient->dwID, pPacket, dwPacketSize);
-		}
-		pCurLink = pClient->SectorLink.pNext;
+		temp.shY = sp.shY + spArrDir[i].shY;
+		temp.shX = sp.shX + spArrDir[i].shX;
+		if (IsValidSector(temp))
+			GetValidClientFromSector(temp, &g_AroundInfo, &iNum, pExcept);
 	}
+	g_AroundInfo.CI.dwNum = iNum;
+	return &g_AroundInfo;
 }
 
-void SendPacket_Around(const st_Client* pClient, const st_SECTOR_AROUND* pSectorAround, char* pPacket, DWORD dwPacketSize, BOOL bSendMe)
+AroundInfo* GetDeltaValidClient(BYTE byBaseDir, BYTE byDeltaSectorNum, SectorPos SectorBasePos)
 {
-	const st_Client* pExceptClient;
-	if (bSendMe)
-		pExceptClient = nullptr;
-	else
-		pExceptClient = pClient;
-
-	for (SHORT i = 0; i < pSectorAround->byCount; ++i)
-		SendPacket_SectorOne(pSectorAround->Around + i, pPacket, dwPacketSize, pExceptClient);
+	SectorPos GetSector;
+	int iNum = 0;
+	for (int i = 0; i < byDeltaSectorNum; ++i)
+	{
+		GetSector.shY = SectorBasePos.shY + vArr[byBaseDir].shY;
+		GetSector.shX = SectorBasePos.shX + vArr[byBaseDir].shX;
+		byBaseDir = (++byBaseDir) % 8;
+		if (IsValidSector(GetSector))
+			GetValidClientFromSector(GetSector, &g_AroundInfo, &iNum, nullptr);
+	}
+	g_AroundInfo.CI.dwNum = iNum;
+	return &g_AroundInfo;
 }
 
-void AddClientAtSector(st_Client* pClient,SHORT shNewSectorY, SHORT shNewSectorX)
+
+void AddClientAtSector(st_Client* pClient,SectorPos newSectorPos)
 {
-	LinkToLinkedListLast(&(g_Sector[shNewSectorY][shNewSectorX].pClientLinkHead), &(g_Sector[shNewSectorY][shNewSectorX].pClientLinkTail), &(pClient->SectorLink));
-	++(g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient);
-	_LOG(dwLog_LEVEL_ERROR, L"NewClient In Sector X : %d, Y : %d, ClientNum In Sector : %d", shNewSectorX, shNewSectorY, g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient);
-//#ifdef _DEBUG
-//	pClient = LinkToClient(g_Sector[shNewSectorY][shNewSectorX].pClientLinkHead);
-//	for (int i = 0; i < g_Sector[shNewSectorY][shNewSectorX].dwNumOfClient; ++i)
-//	{
-//		printf("ID : %u, Sector X : %d, Y : %d\n", pClient->dwID, shNewSectorX, shNewSectorY);
-//		pClient = LinkToClient(pClient->SectorLink.pNext);
-//	}
-//#endif
+	LinkToLinkedListLast(&(g_Sector[newSectorPos.shY][newSectorPos.shX].pClientLinkHead), &(g_Sector[newSectorPos.shY][newSectorPos.shX].pClientLinkTail), &(pClient->SectorLink));
+	++(g_Sector[newSectorPos.shY][newSectorPos.shX].dwNumOfClient);
+	_LOG(dwLog_LEVEL_DEBUG, L"NewClient In Sector X : %d, Y : %d, ClientNum In Sector : %d", newSectorPos.shX, newSectorPos.shY, g_Sector[newSectorPos.shY][newSectorPos.shX].dwNumOfClient);
 }
 
-void RemoveClientAtSector(st_Client* pClient, SHORT shOldSectorY, SHORT shOldSectorX)
+void RemoveClientAtSector(st_Client* pClient, SectorPos oldSectorPos)
 {
-	UnLinkFromLinkedList(&(g_Sector[shOldSectorY][shOldSectorX].pClientLinkHead), &(g_Sector[shOldSectorY][shOldSectorX].pClientLinkTail), &(pClient->SectorLink));
-	--(g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient);
-	_LOG(dwLog_LEVEL_ERROR, L"Client removed from Sector X : %d, Y : %d, ClientNum In Sector : %d", shOldSectorX, shOldSectorY, g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient);
-//#ifdef _DEBUG
-//	pClient = LinkToClient(g_Sector[shOldSectorY][shOldSectorX].pClientLinkHead);
-//	for (int i = 0; i < g_Sector[shOldSectorY][shOldSectorX].dwNumOfClient; ++i)
-//	{
-//		printf("ID : %u, Sector X : %d, Y : %d\n", pClient->dwID, shOldSectorX, shOldSectorY);
-//		pClient = LinkToClient(pClient->SectorLink.pNext);
-//	}
-//#endif 
+	UnLinkFromLinkedList(&(g_Sector[oldSectorPos.shY][oldSectorPos.shX].pClientLinkHead), &(g_Sector[oldSectorPos.shY][oldSectorPos.shX].pClientLinkTail), &(pClient->SectorLink));
+	--(g_Sector[oldSectorPos.shY][oldSectorPos.shX].dwNumOfClient);
+	_LOG(dwLog_LEVEL_DEBUG, L"Client removed from Sector X : %d, Y : %d, ClientNum In Sector : %d", oldSectorPos.shX, oldSectorPos.shY, g_Sector[oldSectorPos.shY][oldSectorPos.shX].dwNumOfClient);
 }

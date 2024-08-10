@@ -8,18 +8,12 @@
 #include "SerializeBuffer.h"
 #include "MemoryPool.h"
 #include "LinkedList.h"
-#include "HashTable.h"
 #include "RingBuffer.h"
 #include "Session.h"
-#include "SessionManager.h"
-#include "DisconnectManager.h"
-#include "Sector.h"
 #include "Client.h"
-#include "ClientManager.h"
-#include "CStub.h"
 #include "Logger.h"
+
 #include "Constant.h"
-#include "SCContents.h"
 
 
 #pragma comment(lib,"ws2_32.lib")
@@ -27,10 +21,10 @@ SOCKET g_listenSock;
 
 DWORD g_dwID = 0;
 DWORD g_dwUserNum = 0;
-SerializeBuffer g_sb;
-SessionManager* g_pSessionManager;
-DisconnectManager* g_pDisconnectManager;
-ClientManager* g_pClientManager;
+
+SerializeBuffer g_sb1;
+SerializeBuffer g_sb2;
+
 extern int g_iDisconCount;
 extern int g_iDisConByRBFool;
 
@@ -43,24 +37,22 @@ BOOL NetworkInitAndListen()
 	int listenRet;
 	int ioctlRet;
 	int ssoRet;
-	BOOL bRet;
 	LINGER linger;
 	u_long iMode;
 	WSADATA wsa;
 	SOCKADDR_IN serverAddr;
-	bRet = FALSE;
 
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 	{
 		wprintf(L"WSAStartup() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 	_LOG(dwLog_LEVEL_DEBUG, L"WSAStartup()");
-	g_listenSock = socket(AF_INET, SOCK_STREAM, 0);
+	g_listenSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (g_listenSock == INVALID_SOCKET)
 	{
 		wprintf(L"socket() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 
 	ZeroMemory(&serverAddr, sizeof(serverAddr));
@@ -72,7 +64,7 @@ BOOL NetworkInitAndListen()
 	if (bindRet == SOCKET_ERROR)
 	{
 		wprintf(L"bind() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 	_LOG(dwLog_LEVEL_DEBUG, L"Bind OK # Port : %d", SERVERPORT);
 
@@ -80,7 +72,7 @@ BOOL NetworkInitAndListen()
 	if (listenRet == SOCKET_ERROR)
 	{
 		wprintf(L"listen() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 	_LOG(dwLog_LEVEL_DEBUG, L"Listen OK #");
 	linger.l_onoff = 1;
@@ -89,7 +81,7 @@ BOOL NetworkInitAndListen()
 	if (ssoRet != 0)
 	{
 		wprintf(L"setsockopt() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 
 	_LOG(dwLog_LEVEL_DEBUG, L"Linger OK #");
@@ -99,148 +91,70 @@ BOOL NetworkInitAndListen()
 	if (ioctlRet != 0)
 	{
 		wprintf(L"ioctlsocket() func error code : %d\n", WSAGetLastError());
-		goto lb_return;
+		return FALSE;
 	}
 
-	g_pSessionManager = new SessionManager;
-	g_pSessionManager->Initialize();
-
-	g_pDisconnectManager = new DisconnectManager;
-	g_pDisconnectManager->Initialize();
-
-	g_pClientManager = new ClientManager;
-	g_pClientManager->Initialize();
-
-	g_sb.AllocBuffer();
-
-	g_pCSProc = new CSProc;
-
-	bRet = TRUE;
-	lb_return:
-	return bRet;
+	InitSessionState();
+	g_sb1.AllocBuffer(10000);
+	g_sb2.AllocBuffer(10000);
+	return TRUE;
 }
 
-BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize)
+BOOL EnqPacketRB(const void* pClient, char* pPacket, const DWORD packetSize)
 {
 	st_Session* pSession;
-	RingBuffer* pSendRB;
-	BOOL bRet;
 	int iEnqRet;
 
-	bRet = FALSE;
-	if (g_pDisconnectManager->IsDeleted(dwID))
-	{
-		goto lb_return;
-	}
+	pSession = g_pSessionArr[*(NETWORK_HANDLE*)((char*)pClient + g_dwHandleOffset)];
+	if (!pSession->IsValid)
+		return FALSE;
 
-	pSession = g_pSessionManager->Find(dwID);
-	if (!pSession)
-		__debugbreak();
 
-	pSendRB = &(pSession->sendBuffer);
-
-	iEnqRet = pSendRB->Enqueue(pPacket, packetSize);
+	iEnqRet = pSession->sendRB.Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
 	{
 		++g_iDisConByRBFool;
-		g_pDisconnectManager->RegisterId(dwID);
-		goto lb_return;
+		ReserveSessionDisconnected(pSession);
+		return FALSE;
 	}
 
 	//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %u, sendRB Enqueue Size : %d\tsendRB FreeSize : %d", dwID, iEnqRet, pSendRB->GetFreeSize());
-	bRet = TRUE;
-lb_return:
-	return bRet;
-}
-
-
-void CreatePlayer(st_Client* pNewClient)
-{
-	DWORD dwPacketSize;
-	st_SECTOR_AROUND sectorAround;
-	st_Client* pClient;
-	LINKED_NODE* pCurLink;
-	DWORD dwNumOfClient;
-
-	// 생성된 클라이언트에게 자기 자신이 생성되엇음을 알리기
-	_LOG(dwLog_LEVEL_DEBUG, L"Notify New Characters of his Location");
-	dwPacketSize = MAKE_SC_CREATE_MY_CHARACTER(pNewClient->dwID, pNewClient->byViewDir, pNewClient->shX, pNewClient->shY, pNewClient->chHp);
-	EnqPacketUnicast(pNewClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
-	g_sb.Clear();
-
-	// 주위 9섹터의 클라이언트들에게 자기 자신이 생성되엇음을 알리기
-	dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(pNewClient->dwID, pNewClient->byViewDir, pNewClient->shX, pNewClient->shY, pNewClient->chHp);
-	_LOG(dwLog_LEVEL_DEBUG, L"Notify clients in the surrounding 9 sectors of the creation of a new client");
-	GetSectorAround(pNewClient->shY, pNewClient->shX, &sectorAround);
-	SendPacket_Around(pNewClient, &sectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
-	g_sb.Clear();
-
-
-	// 주위 9섹터의 클라이언트들이 생성된 클라이언트에게 자신의 존재를 통지하기
-	_LOG(dwLog_LEVEL_DEBUG, L"Around Client -> New Client Notify Their Position");
-	for (BYTE i = 0; i < sectorAround.byCount; ++i)
-	{
-		pCurLink = g_Sector[sectorAround.Around[i].shY][sectorAround.Around[i].shX].pClientLinkHead;
-		dwNumOfClient = g_Sector[sectorAround.Around[i].shY][sectorAround.Around[i].shX].dwNumOfClient;
-		for (DWORD i = 0; i < dwNumOfClient; ++i)
-		{
-			pClient = LinkToClient(pCurLink);
-			// 자기자신에게는 보내지 않음.
-			if (pClient != pNewClient)
-			{
-				dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(pClient->dwID, pClient->byViewDir, pClient->shX, pClient->shY, pClient->chHp);
-				EnqPacketUnicast(pNewClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
-				g_sb.Clear();
-				_LOG(dwLog_LEVEL_DEBUG, L"Notify Client : %d Pos -> New Client : %d", pClient->dwID, pNewClient->dwID);
-			}
-			pCurLink = pCurLink->pNext;
-		}
-	}
-
-	pNewClient->CurSector.shY = pNewClient->shY / df_SECTOR_HEIGHT;
-	pNewClient->CurSector.shX = pNewClient->shX / df_SECTOR_WIDTH;
-	AddClientAtSector(pNewClient, pNewClient->CurSector.shY, pNewClient->CurSector.shX);
+	return TRUE;
 }
 
 BOOL AcceptProc()
 {
-	SOCKET clientSock;
-	SOCKADDR_IN clientAddr;
-	BOOL bRet;
 	int addrlen;
+	SOCKADDR_IN clientAddr;
+	SOCKET clientSock;
 	// 이거 SHORT로 만들어서 터짐
 	DWORD dwNewID;
-	WCHAR szIpAddr[MAX_PATH];
-	st_Session* pNewSession;
-	st_Client* pNewClient;
+	DWORD dwRecvTime;
 
-	bRet = FALSE;
 	addrlen = sizeof(clientAddr);
 	clientSock = accept(g_listenSock, (SOCKADDR*)&clientAddr, &addrlen);
 	if (clientSock == INVALID_SOCKET)
 	{
 		wprintf(L"accept func error code : %d\n", WSAGetLastError());
 		__debugbreak();
-		goto lb_return;
+		return FALSE;
 	}
 
-	if (g_pSessionManager->IsFull())
+	if(g_dwSessionNum >= MAX_SESSION)
 	{
 		closesocket(clientSock);
-		goto lb_return;
+		return FALSE;
 	}
 
 	dwNewID = g_dwID++;
+#ifdef _DEBUG
+	WCHAR szIpAddr[MAX_PATH];
 	InetNtop(AF_INET, &clientAddr.sin_addr, szIpAddr, _countof(szIpAddr));
 	_LOG(dwLog_LEVEL_DEBUG, L"Connect # ip : %s / SessionId : %u", szIpAddr, dwNewID);
-
-	g_pSessionManager->RegisterSession(dwNewID, clientSock,&pNewSession);
-	g_pClientManager->RegisterClient(dwNewID, pNewSession, &pNewClient);
-	CreatePlayer(pNewClient);
-
-	bRet = TRUE;
-lb_return:
-	return bRet;
+#endif
+	dwRecvTime = timeGetTime();
+	RegisterSession(clientSock, dwNewID, dwRecvTime);
+	return TRUE;
 }
 
 __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_set* pWriteSet)
@@ -265,22 +179,22 @@ __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_se
 
 	if (FD_ISSET(g_listenSock, pReadSet))
 	{
-		AcceptProc();
 		--iSelectRet;
+		AcceptProc();
 	}
 
 	for (SHORT i = 0; i < FD_SETSIZE - 1 && iSelectRet > 0; ++i)
 	{
 		if (FD_ISSET(ppSessionArr[i]->clientSock, pReadSet))
 		{
-			RecvProc(ppSessionArr[i]);
 			--iSelectRet;
+			RecvProc(ppSessionArr[i]);
 		}
 
 		if (FD_ISSET(ppSessionArr[i]->clientSock, pWriteSet))
 		{
-			SendProc(ppSessionArr[i]);
 			--iSelectRet;
+			SendProc(ppSessionArr[i]);
 		}
 	}
 	return;
@@ -293,18 +207,17 @@ BOOL NetworkProc()
 	st_Session* pSession;
 	st_Session* pSessionArrForSelect[FD_SETSIZE - 1];
 	DWORD dwSockCount;
-	dwSockCount = 0;
 
 	FD_ZERO(&readSet);
 	FD_ZERO(&writeSet);
 	FD_SET(g_listenSock, &readSet);
-	++dwSockCount;
+	dwSockCount = 1;
 
-	pSession = g_pSessionManager->GetFirst();
-	while (pSession)
+	for (DWORD i = 0; i < g_dwSessionNum; ++i)
 	{
+		pSession = g_pSessionArr[i];
 		FD_SET(pSession->clientSock, &readSet);
-		if (pSession->sendBuffer.GetUseSize() > 0)
+		if (pSession->sendRB.GetUseSize() > 0)
 		{
 			FD_SET(pSession->clientSock, &writeSet);
 		}
@@ -312,179 +225,168 @@ BOOL NetworkProc()
 		if (dwSockCount - 1 == 63)
 			__debugbreak();
 
-		pSessionArrForSelect[dwSockCount-1] = pSession;
+		pSessionArrForSelect[dwSockCount - 1] = pSession;
 		++dwSockCount;
-		pSession = g_pSessionManager->GetNext(pSession);
 
 		if (dwSockCount >= FD_SETSIZE)
 		{
-			SelectProc(pSessionArrForSelect, &readSet, &writeSet);//, dwSockCount);
-			dwSockCount = 0;
+			dwSockCount = 1;
+			SelectProc(pSessionArrForSelect, &readSet, &writeSet);
 			FD_ZERO(&readSet);
 			FD_ZERO(&writeSet);
 			FD_SET(g_listenSock, &readSet);
-			++dwSockCount;
-			ZeroMemory(pSessionArrForSelect, sizeof(pSession) * (FD_SETSIZE - 1));
 		}
 	}
 
 	if (dwSockCount > 0)
 	{
-		SelectProc(pSessionArrForSelect, &readSet, &writeSet);//, dwSockCount);
+		SelectProc(pSessionArrForSelect, &readSet, &writeSet);
 	}
 
-	unsigned int* pClosedId;
-	st_Client* pClient;
-	DWORD dwPacketSize;
-	st_SECTOR_AROUND removeSectorAround;
-	// 끊어야 할 사람 전부 끊기
-	pClosedId = g_pDisconnectManager->GetFirst();
-	while (pClosedId)
+	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
 	{
-		pClient = g_pClientManager->Find(*pClosedId);
-		GetSectorAround(pClient->shY, pClient->shX, &removeSectorAround);
-		RemoveClientAtSector(pClient, pClient->CurSector.shY, pClient->CurSector.shX);
-
-		// 삭제될 캐릭터 주위 섹터에 캐릭터 삭제 메시지 뿌리기
-		dwPacketSize = MAKE_SC_DELETE_CHARACTER(*pClosedId);
-		SendPacket_Around(pClient, &removeSectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
-		g_sb.Clear();
-		//_LOG(dwLog_LEVEL_SYSTEM, L"Client ID : %u Disconnected", *pClosedId);
-
-		g_pClientManager->removeClient(pClient);
-		g_pSessionManager->removeSession(*pClosedId);
-		g_pDisconnectManager->removeID(pClosedId);
+		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
+		_LOG(dwLog_LEVEL_DEBUG, L"Session Id : %u Disconnected", g_DisconInfo.DisconInfoArr[i]->dwID);
 		++g_iDisconCount;
-		pClosedId = g_pDisconnectManager->GetFirst();
 	}
+	g_DisconInfo.dwDisconNum = 0;
+
 	return TRUE;
 }
-
-
 
 void SendProc(st_Session* pSession)
 {
 	RingBuffer* pSendRB;
 	int iUseSize;
 	int iDirectDeqSize;
-	int iSendSize;
 	int iSendRet;
 	int iErrCode;
-	
-	int idx = 0;
+	int iBufLen;
+	DWORD dwNOBS;
+	WSABUF wsa[2];
 
 	// 삭제해야하는 id목록에 존재한다면 그냥 넘긴다
-	if (g_pDisconnectManager->IsDeleted(pSession->id))
+	if(pSession->IsValid ==INVALID)
 		return;
 
-	pSendRB = &(pSession->sendBuffer);
+	pSendRB = &(pSession->sendRB);
+
 	iUseSize = pSendRB->GetUseSize();
 	iDirectDeqSize = pSendRB->DirectDequeueSize();
-	while (iUseSize > 0)
-	{
-		// directDeqSize가 0이거나 useSize < directDeqSize라면 sendSize == useSize이어야 하기 때문이다.
-		if (iUseSize < iDirectDeqSize || iDirectDeqSize == 0)
-		{
-			iSendSize = iUseSize;
-		}
-		else
-		{
-			iSendSize = iDirectDeqSize;
-		}
+	if (!iUseSize)
+		return;
 
-		char* temp = pSendRB->GetReadStartPtr();
-		iSendRet = send(pSession->clientSock, pSendRB->GetReadStartPtr(), iSendSize, 0);
-		if (iSendRet == SOCKET_ERROR)
+	if (iUseSize <= iDirectDeqSize)
+	{
+		wsa[0].buf = pSendRB->GetReadStartPtr();
+		wsa[0].len = iUseSize;
+		iBufLen = 1;
+	}
+	else
+	{
+		wsa[0].buf = pSendRB->GetReadStartPtr();
+		wsa[0].len = iDirectDeqSize;
+		wsa[1].buf = pSendRB->Buffer_;
+		wsa[1].len = iUseSize - iDirectDeqSize;
+		iBufLen = 2;
+	}
+
+	iSendRet = WSASend(pSession->clientSock, wsa, iBufLen, &dwNOBS, 0, NULL, NULL);
+	if (iSendRet == SOCKET_ERROR)
+	{
+		iErrCode = WSAGetLastError();
+		if (iErrCode != WSAEWOULDBLOCK)
 		{
-			iErrCode = WSAGetLastError();
-			if (iErrCode != WSAEWOULDBLOCK)
-			{
-				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d, send() func error code : %d #", pSession->id, iErrCode);
-				g_pDisconnectManager->RegisterId(pSession->id);
-			}
-			else
-			{
-				_LOG(dwLog_LEVEL_ERROR, L"session ID : %d send WSAEWOULDBLOCK #", pSession->id);
-			}
-			// 여기서 리턴 안해서 중복으로 삭제 매니저에 id가 중복등록됨
+			ReserveSessionDisconnected(pSession);
 			return;
 		}
-		pSendRB->MoveFront(iSendSize);
-		iUseSize = pSendRB->GetUseSize();
-		iDirectDeqSize = pSendRB->DirectDequeueSize();
 	}
+	pSendRB->MoveOutPos(dwNOBS);
 }
+
 
 BOOL RecvProc(st_Session* pSession)
 {
-	int iRecvRet;
-	int iPeekRet;
-	int iDeqRet;
-	int iRecvSize;
-	Header header;
-	BOOL bRet;
 	RingBuffer* pRecvRB;
+	int iDirEnqSize;
+	int iFreeSize;
+	int iBufLen;
+	DWORD dwNOBR;
+	WSABUF wsa[2];
+	int iErrCode;
 
-	bRet = FALSE;
-	if (g_pDisconnectManager->IsDeleted(pSession->id))
-		goto lb_return;
+	if(pSession->IsValid == INVALID)
+		return FALSE;
 
-	pRecvRB = &(pSession->recvBuffer);
-	iRecvSize = pRecvRB->DirectEnqueueSize();
-	if (iRecvSize == 0)
-		iRecvSize = pRecvRB->GetFreeSize();
-
-	iRecvRet = recv(pSession->clientSock, pRecvRB->GetWriteStartPtr(), iRecvSize, 0);
-	if (iRecvRet == 0)
+	pSession->dwLastRecvTime = timeGetTime();
+	pRecvRB = &(pSession->recvRB);
+	
+	iDirEnqSize = pRecvRB->DirectEnqueueSize();
+	iFreeSize = pRecvRB->GetFreeSize();
+	if (iFreeSize <= iDirEnqSize)
 	{
-		//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, TCP CONNECTION END", pSession->id);
-		g_pDisconnectManager->RegisterId(pSession->id);
-		goto lb_return;
+		wsa[0].buf = pRecvRB->GetWriteStartPtr();
+		wsa[0].len = iFreeSize;
+		iBufLen = 1;
+	}
+	else
+	{
+		wsa[0].buf = pRecvRB->GetWriteStartPtr();
+		wsa[0].len = iDirEnqSize;
+		wsa[1].buf = pRecvRB->Buffer_;
+		wsa[1].len = iFreeSize - iDirEnqSize;
+		iBufLen = 2;
+	}
+
+	DWORD dwFlags = 0;
+	int iRecvRet = WSARecv(pSession->clientSock, wsa, iBufLen, &dwNOBR, &dwFlags, NULL, NULL);
+	if (iRecvRet == 0 && dwNOBR == 0)
+	{
+		ReserveSessionDisconnected(pSession);
+		return FALSE;
 	}
 	else if (iRecvRet == SOCKET_ERROR)
 	{
-		int errCode = WSAGetLastError();
-		if (errCode != WSAEWOULDBLOCK)
+		iErrCode = WSAGetLastError();
+		if (iErrCode != WSAEWOULDBLOCK)
 		{
-			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %d, recv() error code : %d\n", pSession->id, errCode);
-			g_pDisconnectManager->RegisterId(pSession->id);
+			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %d, recv() error code : %d\n", pSession->dwID, iErrCode);
+			ReserveSessionDisconnected(pSession);
 		}
-		goto lb_return;
+		return FALSE;
 	}
-	//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %d, recv() -> recvRB size : %d", pSession->id, iRecvRet);
-	pRecvRB->MoveRear(iRecvRet);
+	pRecvRB->MoveInPos(dwNOBR);
 
+	int iPeekRet;
+	int iDeqRet;
+	Header header;
 	while (true)
 	{
-		iPeekRet = pRecvRB->Peek(sizeof(header), (char*)&header);
-		if (iPeekRet== 0)
-			goto lb_return;
+		iPeekRet = pRecvRB->Peek((char*)&header, sizeof(header));
+		if (iPeekRet == 0)
+			return FALSE;
 
 		if (header.byCode != 0x89)
 		{
 			__debugbreak();
-			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->id);
-			g_pDisconnectManager->RegisterId(pSession->id);
-			goto lb_return;
+			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->dwID);
+			ReserveSessionDisconnected(pSession);
+			return FALSE;
 		}
 		// 직렬화버퍼이므로 매번 메시지를 처리하기 직전에는 rear_ == front_ == 0이라는것이 전제
-		if (g_sb.bufferSize_ < header.bySize)
+		if (g_sb1.bufferSize_ < header.bySize)
 		{
 			__debugbreak();
-			g_sb.Resize();
+			g_sb1.Resize();
 		}
 
-		iDeqRet = pRecvRB->Dequeue(g_sb.GetBufferPtr(), sizeof(header) + header.bySize);
+		iDeqRet = pRecvRB->Dequeue(g_sb1.GetBufferPtr(), sizeof(header) + header.bySize);
 		if (iDeqRet == 0)
-			goto lb_return;
+			return FALSE;
 
-		g_sb.MoveWritePos(iDeqRet);
-		g_sb.MoveReadPos(sizeof(header));
-		g_pCSProc->PacketProc(pSession->id, header.byType);
+		g_sb1.MoveWritePos(iDeqRet);
+		g_sb1.MoveReadPos(sizeof(header));
+		packetProc(pSession->pClient, header.byType);
 	}
-
-	bRet = TRUE;
-lb_return:
-	return bRet;
+	return TRUE;
 }
-

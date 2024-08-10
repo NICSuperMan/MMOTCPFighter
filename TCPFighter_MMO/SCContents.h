@@ -1,4 +1,7 @@
 #pragma once
+#include "SerializeBuffer.h"
+#include "Position.h"
+
 constexpr int dfPACKET_SC_CREATE_MY_CHARACTER = 0;
 constexpr int dfPACKET_SC_CREATE_OTHER_CHARACTER = 1;
 constexpr int dfPACKET_SC_DELETE_CHARACTER = 2;
@@ -11,15 +14,14 @@ constexpr int dfPACKET_SC_DAMAGE = 30;
 constexpr int dfPACKET_SC_SYNC = 251;
 constexpr int dfPACKET_SC_ECHO = 253;
 
-DWORD MAKE_HEADER(BYTE byPacketSize, BYTE byPacketType);
-DWORD MAKE_SC_CREATE_MY_CHARACTER(DWORD dwDestID, BYTE byDirection, SHORT shX, SHORT shY, CHAR chHP);
-DWORD MAKE_SC_CREATE_OTHER_CHARACTER(DWORD dwCreateId, BYTE byDirection, SHORT shX, SHORT shY, CHAR chHP);
-DWORD MAKE_SC_DELETE_CHARACTER(DWORD dwDeleteId);
-DWORD MAKE_SC_MOVE_START(DWORD dwStartId, BYTE byMoveDir, SHORT shX, SHORT shY);
-DWORD MAKE_SC_MOVE_STOP(DWORD dwStopId, BYTE byViewDir, SHORT shX, SHORT shY);
-DWORD MAKE_SC_ATTACK(DWORD dwAttackerId, BYTE byViewDir, SHORT shX, SHORT shY, DWORD dwAttackNum);
-DWORD MAKE_SC_DAMAGE(DWORD dwAttackerId, DWORD dwVictimId, BYTE byVimctimHp);
-DWORD MAKE_SC_SYNC(DWORD dwSyncId, SHORT shX, SHORT shY);
-DWORD MAKE_SC_ECHO(DWORD dwTime);
+DWORD MAKE_SC_CREATE_MY_CHARACTER(DWORD dwDestID, BYTE byDirection, Pos pos, CHAR chHP, SerializeBuffer& sb);
+DWORD MAKE_SC_CREATE_OTHER_CHARACTER(DWORD dwCreateId, BYTE byDirection, Pos pos, CHAR chHP, SerializeBuffer& sb);
+DWORD MAKE_SC_DELETE_CHARACTER(DWORD dwDeleteId, SerializeBuffer& sb);
+DWORD MAKE_SC_MOVE_START(DWORD dwStartId, BYTE byMoveDir, Pos pos, SerializeBuffer& sb);
+DWORD MAKE_SC_MOVE_STOP(DWORD dwStopId, BYTE byViewDir, Pos pos, SerializeBuffer& sb);
+DWORD MAKE_SC_ATTACK(DWORD dwAttackerId, BYTE byViewDir, Pos AttackerPos, DWORD dwAttackNum, SerializeBuffer& sb);
+DWORD MAKE_SC_DAMAGE(DWORD dwAttackerId, DWORD dwVictimId, BYTE byVimctimHp, SerializeBuffer& sb);
+DWORD MAKE_SC_SYNC(DWORD dwSyncId, Pos pos, SerializeBuffer& sb);
+DWORD MAKE_SC_ECHO(DWORD dwTime, SerializeBuffer& sb);
 
 

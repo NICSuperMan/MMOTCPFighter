@@ -123,6 +123,7 @@
       <ConformanceMode>true</ConformanceMode>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <Optimization>Disabled</Optimization>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,10 +133,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ClientManager.cpp" />
-    <ClCompile Include="CStub.cpp" />
-    <ClCompile Include="DisconnectManager.cpp" />
-    <ClCompile Include="HashTable.cpp" />
+    <ClCompile Include="CallBack.cpp" />
+    <ClCompile Include="CSCContents.cpp" />
     <ClCompile Include="LinkedList.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
@@ -143,26 +142,26 @@
     <ClCompile Include="RingBuffer.cpp" />
     <ClCompile Include="SCContents.cpp" />
     <ClCompile Include="Sector.cpp" />
-    <ClCompile Include="SessionManager.cpp" />
+    <ClCompile Include="Session.cpp" />
     <ClCompile Include="Update.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CallBack.h" />
     <ClInclude Include="Client.h" />
-    <ClInclude Include="ClientManager.h" />
     <ClInclude Include="Constant.h" />
-    <ClInclude Include="CStub.h" />
-    <ClInclude Include="DisconnectManager.h" />
-    <ClInclude Include="HashTable.h" />
+    <ClInclude Include="CSCContents.h" />
+    <ClInclude Include="Direction.h" />
     <ClInclude Include="LinkedList.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="MemoryPool.h" />
+    <ClInclude Include="MiddleWare.h" />
     <ClInclude Include="Network.h" />
+    <ClInclude Include="Position.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="SCContents.h" />
     <ClInclude Include="Sector.h" />
     <ClInclude Include="SerializeBuffer.h" />
     <ClInclude Include="Session.h" />
-    <ClInclude Include="SessionManager.h" />
     <ClInclude Include="Update.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

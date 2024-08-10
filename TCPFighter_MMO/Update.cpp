@@ -1,227 +1,166 @@
 #include <windows.h>
-#include "Update.h"
-#include "ClientManager.h"
-#include "DisconnectManager.h"
-#include "SessionManager.h"
-#include "Sector.h"
-#include "SCContents.h"
-#include "SerializeBuffer.h"
 #include "Constant.h"
+#include "Direction.h"
 #include "Logger.h"
-#include "sector.h"
-#include "Network.h"
+#include "MiddleWare.h"
+#include "SCContents.h"
+#include "Sector.h"
+#include "SerializeBuffer.h"
 
-extern SerializeBuffer g_sb;
+extern SerializeBuffer g_sb1;
+extern SerializeBuffer g_sb2;
+extern SerializeBuffer g_sb3;
 
 extern st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
+
+st_Client* g_pClientArr[MAX_SESSION];
 
 extern int g_iDisConByTimeOut;
 
 
-void GetDirStr(BYTE byMoveDir, WCHAR* pDir, int len);
+//void GetDirStr(BYTE byMoveDir, WCHAR* pDir, int len);
 
 // X64 Calling Convetion 에 따라서 RTL 4개까지 레지스터에 넣어줘서 굳이 씀
-void SectorUpdateAndNotify(st_Client* pClient, BYTE byMoveDir, SHORT shOldSectorY, SHORT shOldSectorX, SHORT shNewSectorY, SHORT shNewSectorX, st_SECTOR_AROUND* pOutNewAround)
+void SectorUpdateAndNotify(st_Client* pClient, BYTE bySectorMoveDir, SectorPos oldSectorPos, SectorPos newSectorPos, BOOL IsMove)
 {
-	BYTE byDeltaSectorNum;
-	st_SECTOR_AROUND removeSectorAround;
-	DWORD dwPacketSize;
 	DWORD dwID;
-	SHORT shY;
-	SHORT shX;
-
-	if (!pOutNewAround)
-		__debugbreak();
+	Pos CurPos;
+	CHAR chHP;
+	BYTE byDeltaSectorNum;
+	BYTE byViewDir;
+	DWORD dwMSDC_OneToAllSize;
+	DWORD dwMSDC_AllToOneSize;
+	DWORD dwMSCOC_OneToAllSize;
+	DWORD dwMSCOC_AllToOneSize;
+	DWORD dwMSMS_OneToAllSize;
+	DWORD dwMSMS_AllToOneSize;
 
 	dwID = pClient->dwID;
-	shY = pClient->shY;
-	shX = pClient->shX;
+	CurPos = pClient->pos;
+	chHP = pClient->chHp;
+	byViewDir = pClient->byViewDir;
 
 	// 섹터 리스트에 갱신
-	RemoveClientAtSector(pClient, shOldSectorY, shOldSectorX);
-	AddClientAtSector(pClient, shNewSectorY, shNewSectorX);
+	RemoveClientAtSector(pClient, oldSectorPos);
+	AddClientAtSector(pClient, newSectorPos);
 
 	// 영향권에서 없어진 섹터와 영향권에 들어오는 섹터를 구함
-	byDeltaSectorNum = (byMoveDir % 2 == 0) ? 3 : 5;
-	GetDeltaSector(removeDirArr[byMoveDir], &removeSectorAround, byDeltaSectorNum, shOldSectorY, shOldSectorX);
-	
-	st_SECTOR_CLIENT_INFO* pSCI;
-	LINKED_NODE* pCurLink;
+	byDeltaSectorNum = (bySectorMoveDir % 2 == 0) ? 3 : 5;
+	AroundInfo* pRemoveAroundInfo = GetDeltaValidClient(removeDirArr[bySectorMoveDir], byDeltaSectorNum, oldSectorPos);
+	if (pRemoveAroundInfo->CI.dwNum <= 0)
+		goto lb_new;
 
-	// 나의 시야에서 없어진 섹터에 내가 없어졋다고 알림
-	if (removeSectorAround.byCount)
+	dwMSDC_OneToAllSize = MAKE_SC_DELETE_CHARACTER(dwID, g_sb1);
+	dwMSDC_AllToOneSize = 0;
+	for (DWORD i = 0; i < pRemoveAroundInfo->CI.dwNum; ++i)
 	{
-		st_Client* pRemovedClient;
-
-		for (BYTE i = 0; i < removeSectorAround.byCount; ++i)
-		{
-			dwPacketSize = MAKE_SC_DELETE_CHARACTER(dwID); 
-			_LOG(dwLog_LEVEL_DEBUG, L"Notify Remove Character ID : %u To SECTOR X : %d, Y : %d", dwID, removeSectorAround.Around[i].shX, removeSectorAround.Around[i].shY);
-			SendPacket_SectorOne(&removeSectorAround.Around[i], g_sb.GetBufferPtr(), dwPacketSize, nullptr);
-			g_sb.Clear();
-			pSCI = &g_Sector[removeSectorAround.Around[i].shY][removeSectorAround.Around[i].shX];
-
-			// 움직이는 캐릭터의 시야에서 없어진 섹터에 존재하는 캐릭터들도 지워야함.
-			pCurLink = pSCI->pClientLinkHead;
-			for (DWORD i = 0; i < pSCI->dwNumOfClient; ++i)
-			{
-				pRemovedClient = LinkToClient(pCurLink);
-				_LOG(dwLog_LEVEL_ERROR, L"Notify Remove Character ID : %u -> ID : %u ", pRemovedClient->dwID, dwID);
-				dwPacketSize = MAKE_SC_DELETE_CHARACTER(pRemovedClient->dwID);
-				EnqPacketUnicast(dwID, g_sb.GetBufferPtr(), dwPacketSize);
-				g_sb.Clear();
-				pCurLink = pCurLink->pNext;
-			}
-		}
+		st_Client* pOtherClient = pRemoveAroundInfo->CI.cArr[i];
+		EnqPacketRB(pOtherClient, g_sb1.GetBufferPtr(), dwMSDC_OneToAllSize);
+		dwMSDC_AllToOneSize += MAKE_SC_DELETE_CHARACTER(pOtherClient->dwID, g_sb2);
 	}
+	EnqPacketRB(pClient, g_sb2.GetBufferPtr(), dwMSDC_AllToOneSize);
+	g_sb1.Clear();
+	g_sb2.Clear();
 
-	GetDeltaSector(AddDirArr[byMoveDir], pOutNewAround, byDeltaSectorNum, shNewSectorY, shNewSectorX);
-	// 나의 시야에서 생긴 섹터에 내가 생겻다고 알림
-	if (pOutNewAround->byCount)
+
+lb_new:
+	AroundInfo* pNewAroundInfo = GetDeltaValidClient(AddDirArr[bySectorMoveDir], byDeltaSectorNum, newSectorPos);
+	if (pNewAroundInfo->CI.dwNum <= 0)
+		return;
+
+	dwMSCOC_OneToAllSize = MAKE_SC_CREATE_OTHER_CHARACTER(dwID, byViewDir, CurPos, chHP, g_sb1);
+	dwMSMS_OneToAllSize = 0;
+
+	if (IsMove)
+		dwMSMS_OneToAllSize = MAKE_SC_MOVE_START(dwID, pClient->byMoveDir, CurPos, g_sb1);
+
+	dwMSCOC_AllToOneSize = 0;
+	dwMSMS_AllToOneSize = 0;
+	for (DWORD i = 0; i < pNewAroundInfo->CI.dwNum; ++i)
 	{
-		st_Client* pNewClient;
-		for (BYTE i = 0; i < pOutNewAround->byCount; ++i)
-		{
-			dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(dwID, pClient->byViewDir, shX, shY, pClient->chHp);
-			_LOG(dwLog_LEVEL_DEBUG, L"Notify Create Character ID : %u To SECTOR X : %d, Y : %d", dwID, pOutNewAround->Around[i].shX, pOutNewAround->Around[i].shY);
-			SendPacket_SectorOne(&pOutNewAround->Around[i], g_sb.GetBufferPtr(), dwPacketSize, nullptr);
-			g_sb.Clear();
-			pSCI = &g_Sector[pOutNewAround->Around[i].shY][pOutNewAround->Around[i].shX];
-			pCurLink = pSCI->pClientLinkHead;
-			for (DWORD i = 0; i < pSCI->dwNumOfClient; ++i)
-			{
-				pNewClient = LinkToClient(pCurLink);
-				_LOG(dwLog_LEVEL_ERROR, L"Notify New Already Character ID : %u -> ID : %u ", pNewClient->dwID, dwID);
-				dwPacketSize = MAKE_SC_CREATE_OTHER_CHARACTER(pNewClient->dwID, pNewClient->byViewDir, pNewClient->shX, pNewClient->shY, pNewClient->chHp);
-				EnqPacketUnicast(pClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
-				g_sb.Clear();
-				if (pNewClient->dwAction == MOVE)
-				{
-					dwPacketSize = MAKE_SC_MOVE_START(pNewClient->dwID, pNewClient->byMoveDir, pNewClient->shX, pNewClient->shY);
-					EnqPacketUnicast(pNewClient->dwID, g_sb.GetBufferPtr(), dwPacketSize);
-					g_sb.Clear();
-				}
-				pCurLink = pCurLink->pNext;
-			}
-		}
+		st_Client* pOtherClient = pNewAroundInfo->CI.cArr[i];
+		EnqPacketRB(pOtherClient, g_sb1.GetBufferPtr(), dwMSCOC_OneToAllSize + dwMSMS_OneToAllSize);
+		dwMSCOC_AllToOneSize += MAKE_SC_CREATE_OTHER_CHARACTER(pOtherClient->dwID, pOtherClient->byViewDir, pOtherClient->pos, pOtherClient->chHp, g_sb2);
+		if (pOtherClient->byMoveDir != dfPACKET_MOVE_DIR_NOMOVE)
+			dwMSMS_AllToOneSize += MAKE_SC_MOVE_START(pOtherClient->dwID, pOtherClient->byMoveDir, pOtherClient->pos, g_sb2);
 	}
+	EnqPacketRB(pClient, g_sb2.GetBufferPtr(), dwMSCOC_AllToOneSize + dwMSMS_AllToOneSize);
+	g_sb1.Clear();
+	g_sb2.Clear();
 
-	pClient->OldSector.shY = shOldSectorY;
-	pClient->OldSector.shX = shOldSectorX;
-	pClient->CurSector.shY = shNewSectorY;
-	pClient->CurSector.shX = shNewSectorX;
 
+	pClient->OldSector = oldSectorPos;
+	pClient->CurSector = newSectorPos;
 }
 
-BYTE GetSectorMoveDir(SHORT shOldSectorY, SHORT shOldSectorX, SHORT shNewSectorY, SHORT shNewSectorX);
+
+constexpr DirVector speedVector{ dfSPEED_PLAYER_Y,dfSPEED_PLAYER_X };
 
 void Update()
 {
-	SHORT shOldY;
-	SHORT shOldX;
-	SHORT shNewY;
-	SHORT shNewX;
-	SHORT shOldSectorY;
-	SHORT shOldSectorX;
-	SHORT shNewSectorY;
-	SHORT shNewSectorX;
+	Pos oldPos;
+	Pos newPos;
+	SectorPos oldSector;
+	SectorPos newSector;
 	BYTE bySectorMoveDir;
 	DWORD dwTime;
+	DirVector dirVector;
+	DWORD dwClientNum;
 
 
-	st_DirVector dirVector;
-	st_Client* pClient;
-	st_SECTOR_AROUND newSectorAround;
-	DWORD dwPacketSize;
+	GetAllValidClient(&dwClientNum, (void**)g_pClientArr);
 
-	pClient = g_pClientManager->GetFirst();
-	while (pClient)
+	for (DWORD i = 0; i < dwClientNum; ++i)
 	{
-		// 접속이 끊길 예정인 사람 확인
-		if (g_pDisconnectManager->IsDeleted(pClient->dwID))
-			goto lb_next;
+		// 접속이 끊길 예정인 사람 확인, Valid 한 새끼만 구해왓으나 중간중간 섹터이동등으로 인한 메시지 전송과정에서 네트워크 상태가 INVALID로 바뀌는 경우가 잇음.
+		if (IsNetworkStateInValid(g_pClientArr[i]->handle))
+			continue;
 
-		// 타임아웃 처리
+		//타임아웃 처리
 		dwTime = timeGetTime();
-		if (dwTime - pClient->dwLastRecvTime > dwTimeOut)
+		if (dwTime - GetLastRecvTime(g_pClientArr[i]->handle) > dwTimeOut + 100)
 		{
 			++g_iDisConByTimeOut;
-			g_pDisconnectManager->RegisterId(pClient->dwID);
-			goto lb_next;
+			AlertSessionOfClientInvalid(g_pClientArr[i]->handle);
+			continue;
 		}
 
 		// 죽을때 된사람 죽이기
-		if (pClient->chHp <= 0)
+		if (g_pClientArr[i]->chHp <= 0)
 		{
-			g_pDisconnectManager->RegisterId(pClient->dwID);
-			//_LOG(dwLog_LEVEL_DEBUG,L"Delete Client : %u By Dead", pClient->dwID);
-			goto lb_next;
+			AlertSessionOfClientInvalid(g_pClientArr[i]->handle);
+			_LOG(dwLog_LEVEL_DEBUG, L"Delete Client : %u By Dead", g_pClientArr[i]->dwID);
+			continue;
 		}
 
 		// 안 움직이는 사람 건너뛰기
-		if (pClient->dwAction != MOVE)
-			goto lb_next;
+		if (g_pClientArr[i]->byMoveDir == dfPACKET_MOVE_DIR_NOMOVE)
+			continue;
 
 		// 이동후 위치계산
-		dirVector = vArr[pClient->byMoveDir];
-		shOldY = pClient->shY;
-		shOldX = pClient->shX;
-		shNewY = shOldY + dirVector.shY * dfSPEED_PLAYER_Y;
-		shNewX = shOldX + dirVector.shX * dfSPEED_PLAYER_X;
+		dirVector = vArr[g_pClientArr[i]->byMoveDir];
+		oldPos = g_pClientArr[i]->pos;
+		newPos.shY = oldPos.shY + vArr[g_pClientArr[i]->byMoveDir].shY * speedVector.shY;
+		newPos.shX = oldPos.shX + vArr[g_pClientArr[i]->byMoveDir].shX * speedVector.shX;
 
+		// 새로 이동한 위치검증, 여기서 통과해야 섹터가 변경된 경우에 대한 절차를 거친다
+		if (!IsValidPos(newPos))
+			continue;
 
-		// 새로 이동한 위치검증
-		if (!IsValidPos(shNewY, shNewX))
-			goto lb_next;
-
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u X : %d, Y : %d -> X : %d, Y : %d ", pClient->dwID, shOldX, shOldY, shNewX, shNewY);
+		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u X : %d, Y : %d -> X : %d, Y : %d ", g_pClientArr[i]->dwID, oldPos.shX, oldPos.shY, newPos.shX, newPos.shY);
 
 		// 이동 후 섹터와 이전 섹터 계산
-		shOldSectorY = shOldY / df_SECTOR_HEIGHT;
-		shOldSectorX = shOldX / df_SECTOR_WIDTH;
-		shNewSectorY = shNewY / df_SECTOR_HEIGHT;
-		shNewSectorX = shNewX / df_SECTOR_WIDTH;
+		CalcSector(&oldSector, oldPos);
+		CalcSector(&newSector, newPos);
+
+		if (IsSameSector(oldSector, newSector))
+			goto lb_same;
 
 		// 섹터가 이동한 경우
-		if (!IsSameSector(shOldSectorY, shOldSectorX, shNewSectorY, shNewSectorX))
-		{
-			bySectorMoveDir = GetSectorMoveDir(shOldSectorY, shOldSectorX, shNewSectorY, shNewSectorX);
-			SectorUpdateAndNotify(pClient, bySectorMoveDir, shOldSectorY, shOldSectorX, shNewSectorY, shNewSectorX, &newSectorAround);
-			if (newSectorAround.byCount > 0)
-			{
-				dwPacketSize = MAKE_SC_MOVE_START(pClient->dwID, pClient->byMoveDir, shNewX, shNewY);
-				for (int i = 0; i < newSectorAround.byCount; ++i)
-				{
-					//_LOG(dwLog_LEVEL_DEBUG, L"Notify MOVE START Character ID : %u To SECTOR X : %d, Y : %d", pClient->dwID, newSectorAround.Around[i].shX, newSectorAround.Around[i].shY);
-					SendPacket_SectorOne(&newSectorAround.Around[i], g_sb.GetBufferPtr(), dwPacketSize, nullptr);
-				}
-				g_sb.Clear();
-			}
-		}
+		bySectorMoveDir = GetSectorMoveDir(oldSector, newSector);
+		SectorUpdateAndNotify(g_pClientArr[i], bySectorMoveDir, oldSector, newSector, TRUE);
 
-		pClient->shY = shNewY;
-		pClient->shX = shNewX;
-	lb_next:
-		pClient = g_pClientManager->GetNext(pClient);
+	lb_same:
+		g_pClientArr[i]->pos = newPos;
 	}
-
-	// 끊어야 할 사람 전부 끊기
-	//pClosedId = g_pDisconnectManager->GetFirst();
-	//while (pClosedId)
-	//{
-	//	pClient = g_pClientManager->Find(*pClosedId);
-	//	GetSectorAround(pClient->shY, pClient->shX, &removeSectorAround);
-	//	RemoveClientAtSector(pClient, pClient->CurSector.shY, pClient->CurSector.shX);
-
-	//	// 삭제될 캐릭터 주위 섹터에 캐릭터 삭제 메시지 뿌리기
-	//	dwPacketSize = MAKE_SC_DELETE_CHARACTER(*pClosedId);
-	//	SendPacket_Around(pClient, &removeSectorAround, g_sb.GetBufferPtr(), dwPacketSize, FALSE);
-	//	g_sb.Clear();
-	//	_LOG(dwLog_LEVEL_SYSTEM, L"Client ID : %u Disconnected", *pClosedId);
-
-	//	g_pClientManager->removeClient(pClient);
-	//	g_pSessionManager->removeSession(*pClosedId);
-	//	g_pDisconnectManager->removeID(pClosedId);
-	//	pClosedId = g_pDisconnectManager->GetFirst();
-	//}
 }

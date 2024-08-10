@@ -1,42 +1,86 @@
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
 #include "RingBuffer.h"
 #include <math.h>
 #include <memory.h>
-#include "stdio.h"
 
-#define new new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
-#pragma warning(disable : 4267)
+#pragma warning(disable : 4700)
+
+#define GetDirectEnqueueSize_MACRO(iRet) do\
+{\
+if(iInPos_ >= iOutPos_){\
+	if(iOutPos_ > 0){\
+		iRet = ACTUAL_SIZE - iInPos_;\
+	}else{\
+		iRet = BUFFER_SIZE - iInPos_;\
+}}\
+else{\
+	iRet = iOutPos_ - iInPos_- 1;\
+}\
+}while(0)\
+
+#define GetDirectDequeueSize_MACRO(iRet) do{\
+if(iInPos_ >= iOutPos_){\
+	iRet = iInPos_ - iOutPos_;\
+}\
+else{\
+	iRet = ACTUAL_SIZE - iOutPos_;\
+}\
+}while(0)\
+
+
+#define GetUseSize_MACRO(iRet) do\
+{\
+	if(iInPos_ >= iOutPos_){\
+		iRet = iInPos_ - iOutPos_;\
+	}\
+	else{\
+		iRet = ACTUAL_SIZE - iOutPos_ + iInPos_;\
+	}\
+}while(0)\
+
+#define GetFreeSize_MACRO(iRet) do\
+{\
+int iUseSize;\
+GetUseSize_MACRO(iUseSize);\
+iRet = BUFFER_SIZE - iUseSize;\
+}while(0)\
+
+
+#define GetInStartPtr_MACRO(iRet) do{\
+iRet = (Buffer_ + iInPos_);\
+}while(0)\
+
+#define GetOutStartPtr_MACRO(iRet) do{\
+iRet = (Buffer_ + iOutPos_);\
+}while(0)\
+
+#define MoveInOrOutPos_MACRO(iPos_,iMoveSize) do{\
+iPos_ = (iPos_ + iMoveSize) % (ACTUAL_SIZE);\
+}while(0);\
+
 // 특이사항 : 원형 큐이기 때문에 할당 크기가 BUFFER_SIZE 보다 1 커야함
 RingBuffer::RingBuffer(void)
 {
-	//pBuffer_ = new char[BUFFER_SIZE + 1];
-	front_ = rear_ = 0;
+	iOutPos_ = iInPos_ = 0;
 }
 
 RingBuffer::~RingBuffer(void)
 {
-	//delete[] pBuffer_;
 }
 
 // Return:  (int) 현재 Buffer에서 Enqueue되어있는 크기
 int RingBuffer::GetUseSize(void)
 {
-	if (rear_ - front_ >= 0)
-	{
-		return rear_ - front_;
-	}
-	else
-	{
-		return BUFFER_SIZE - (front_ - rear_ - 1);
-	}
+	int iRet;
+	GetUseSize_MACRO(iRet);
+	return iRet;
 }
 
 // Return:(int)현재 Buffer에 추가로 Enequeue 가능한 크기
 int RingBuffer::GetFreeSize(void)
 {
-	return BUFFER_SIZE - GetUseSize();
+	int iRet;
+	GetFreeSize_MACRO(iRet);
+	return iRet;
 }
 
 //--------------------------------------------------------------------
@@ -46,35 +90,40 @@ int RingBuffer::GetFreeSize(void)
 // Return:		(int) Ring Buffer에 들어간 크기(사실상 0 혹은 sizeToPut 둘중 하나다)
 // 특이사항 : Enqueue정책은 sizeToPut() > GetFreeSize()이면 0을 반환한다.
 //--------------------------------------------------------------------
-int RingBuffer::Enqueue(IN char* pDest, IN size_t sizeToPut)
+int RingBuffer::Enqueue(const char* pSource, int iSizeToPut)
 {
-	size_t freeSize = GetFreeSize();	
-	if (sizeToPut > freeSize)
+	int iFreeSize;
+	int iDirectEnqueueSize;
+	int iFirstSize;
+	int iSecondSize;
+	char* pInStartPos;
+
+	GetFreeSize_MACRO(iFreeSize); 
+	if (iSizeToPut > iFreeSize)
 	{
 		// 반환하는 쪽에서는 연결을 끊어버려야함.
 		return 0;
 	}
-	size_t DirectSize = DirectEnqueueSize();
+	GetDirectEnqueueSize_MACRO(iDirectEnqueueSize); // 2
 
-	// DirectSize가 sizeToPut보다 크면 
-	size_t firstSize = DirectSize > sizeToPut ? sizeToPut : DirectSize;
-	size_t secondSize = sizeToPut - firstSize;
+	// 직선으로 인큐 가능한사이즈가 넣으려는 사이즈보다 크거나 같으면 한번만 복사
+	if (iDirectEnqueueSize >= iSizeToPut) 
+		iFirstSize = iSizeToPut;
+	else // 두번에 나눠서 복사해야함.
+		iFirstSize = iDirectEnqueueSize;
 
-	
-	char* temp = GetWriteStartPtr();
-	memcpy_s(temp, firstSize, pDest, firstSize);
-	MoveRear(firstSize);
-	//memcpy_s(pBuffer_ + rear_ + 1, firstSize, pDest, firstSize);
-	//rear_ = (rear_ + firstSize) % (BUFFER_SIZE + 1);
-	if (secondSize == 0)
-	{
-		return firstSize;
-	}
-	memcpy_s(GetWriteStartPtr(), secondSize, pDest + firstSize, secondSize);
-	MoveRear(secondSize);
-	//memcpy_s(pBuffer_, secondSize, pDest + firstSize, secondSize);
-	//rear_ = (rear_ + secondSize) % (BUFFER_SIZE + 1);
-	return firstSize + secondSize;
+	GetInStartPtr_MACRO(pInStartPos);
+	memcpy(pInStartPos, pSource, iFirstSize);
+	MoveInOrOutPos_MACRO(iInPos_, iFirstSize);
+
+	iSecondSize = iSizeToPut - iFirstSize;
+	if (iSecondSize <= 0)
+		return iFirstSize;
+
+	GetInStartPtr_MACRO(pInStartPos);
+	memcpy(pInStartPos, pSource + iFirstSize, iSecondSize);
+	MoveInOrOutPos_MACRO(iInPos_, iSecondSize);
+	return iFirstSize + iSecondSize;
 }
 
 //--------------------------------------------------------------------
@@ -84,56 +133,78 @@ int RingBuffer::Enqueue(IN char* pDest, IN size_t sizeToPut)
 // Return:		(int) Ring Buffer에서 꺼내서 pDest에 복사한 데이터의 크기
 // 특이사항 : Dequeue정책은 sizeToRead > GetUseSize()이면 Dequeue를 제대로 수행하지않고 0을 반환한다.
 //--------------------------------------------------------------------
-int RingBuffer::Dequeue(OUT char* pDest, IN size_t sizeToRead)
+int RingBuffer::Dequeue(char* pOutDest, int iSizeToOut)
 {
-	size_t useSize = GetUseSize();
-	if (sizeToRead > useSize)
+	int iUseSize;
+	int iDirectDequeueSize;
+	int iFirstSize;
+	int iSecondSize;
+	char* pOutStartPos;
+
+	GetUseSize_MACRO(iUseSize);
+	if (iSizeToOut > iUseSize)
 	{
 		// 들어있는 데이터보다 많은 데이터를 읽으려고 하면 그냥 반환한다.
 		return 0;
 	}
-	size_t directSize = DirectDequeueSize();
-	size_t firstSize = directSize > sizeToRead ? sizeToRead : directSize;
-	size_t secondSize = sizeToRead - firstSize;
+	GetDirectDequeueSize_MACRO(iDirectDequeueSize);
 
-	memcpy_s(pDest, firstSize, GetReadStartPtr(), firstSize);
+	// 직선으로 디큐 가능한사이즈가 읽으려는 사이즈보다 크거나 같으면 한번만 복사
+	if (iDirectDequeueSize > iSizeToOut) 
+		iFirstSize = iSizeToOut;
+	else // 두번에 나눠서 복사해야함
+		iFirstSize = iDirectDequeueSize;
 
-	MoveFront(firstSize);
-	//memcpy_s(pDest, firstSize, pBuffer_ + front_ + 1, firstSize);
-	//front_ = (front_ + firstSize) % (BUFFER_SIZE + 1);
-	if (secondSize <= 0)
-		return firstSize;
-	memcpy_s(pDest + firstSize, secondSize, GetReadStartPtr(), secondSize);
-	MoveFront(secondSize);
-	//memcpy_s(pDest + firstSize, secondSize, pBuffer_, secondSize);
-	//front_ = (front_ + secondSize) % (BUFFER_SIZE + 1);
-	return firstSize + secondSize;
+
+	GetOutStartPtr_MACRO(pOutStartPos);
+	memcpy(pOutDest, pOutStartPos, iFirstSize);
+	MoveInOrOutPos_MACRO(iOutPos_, iFirstSize);
+
+	iSecondSize = iSizeToOut - iFirstSize;
+	if (iSecondSize <= 0)
+		return iFirstSize;
+
+	GetOutStartPtr_MACRO(pOutStartPos);
+	memcpy(pOutDest + iFirstSize, pOutStartPos, iSecondSize);
+	MoveInOrOutPos_MACRO(iOutPos_, iSecondSize);
+	return iFirstSize + iSecondSize;
 }
 
 // 해당함수는 Dequeue와 거의 같지만 복사만 수행하고 front의 위치가 바뀌지 않는다. 
-int RingBuffer::Peek(IN int sizeToPeek, OUT char* pTarget)
+int RingBuffer::Peek(char* pOutTarget, int iSizeToPeek)
 {
-	int useSize = GetUseSize();
-	if (sizeToPeek > useSize)
+	int iUseSize;
+	int iDirectPeekSize;
+	int iFirstSize;
+	int iSecondSize;
+	char* pPeekStartPos;
+	GetUseSize_MACRO(iUseSize);
+	if (iSizeToPeek > iUseSize)
 	{
 		// 들어있는 데이터보다 많은 데이터를 읽으려고 하면 그냥 반환한다.
 		return 0;
 	}
-	int directSize = DirectDequeueSize();
-	int firstSize = directSize > sizeToPeek ? sizeToPeek: directSize;
-	int secondSize = sizeToPeek - firstSize;
 
-	//memcpy_s(pTarget, firstSize, GetReadStartPtr(), firstSize);
-	memcpy_s(pTarget, firstSize, pBuffer_ + front_ + 1, firstSize);
-	if (secondSize <= 0)
-		return firstSize;
-	memcpy_s(pTarget + firstSize, secondSize, pBuffer_, secondSize);
-	return firstSize + secondSize;
+	GetDirectDequeueSize_MACRO(iDirectPeekSize);
+	if (iDirectPeekSize > iSizeToPeek) // 잘려서 두번에 걸쳐서 복사
+		iFirstSize = iSizeToPeek;
+	else // 한번에 복사
+		iFirstSize = iDirectPeekSize;
+
+	GetOutStartPtr_MACRO(pPeekStartPos);
+	memcpy(pOutTarget,pPeekStartPos, iFirstSize);
+
+	iSecondSize = iSizeToPeek - iFirstSize;
+	if (iSecondSize <= 0)
+		return iFirstSize;
+
+	memcpy(pOutTarget + iFirstSize, Buffer_, iSecondSize);
+	return iFirstSize + iSecondSize;
 }
 
 void RingBuffer::ClearBuffer(void)
 {
-	rear_ = front_;
+	iInPos_ = iOutPos_ = 0;
 }
 
 
@@ -141,63 +212,44 @@ void RingBuffer::ClearBuffer(void)
 // 즉 rear+ 1부터 front_ - 1까지의 거리 혹은 rear_ + 1부터 
 int RingBuffer::DirectEnqueueSize(void)
 {
-	if (rear_ >= front_)
-	{
-		return BUFFER_SIZE - rear_;
-	}
-	else
-	{
-		return front_ - rear_ - 1;
-	}
+	int iRet;
+	GetDirectEnqueueSize_MACRO(iRet);
+	return iRet;
 }
 
 int RingBuffer::DirectDequeueSize(void)
 {
-	if (rear_ >= front_)
-	{
-		return rear_ - front_;
-	}
-	else
-	{
-		return BUFFER_SIZE  - front_;
-	}
+	int iRet;
+	GetDirectDequeueSize_MACRO(iRet);
+	return iRet;
 }
 
 // sizeToMove만큼 rear_를 이동시키고 현재 rear_를 반환함.
-int RingBuffer::MoveRear(IN int sizeToMove)
+int RingBuffer::MoveInPos(int iSizeToMove)
 {
-	rear_ = (rear_ + sizeToMove) % (BUFFER_SIZE + 1);
-	return rear_;
+	MoveInOrOutPos_MACRO(iInPos_, iSizeToMove);
+	return iInPos_;
 }
 
-// sizeToMove만큼 front_이동시키고 현재 front_ 반환함.
-int RingBuffer::MoveFront(IN int sizeToMove)
+// sizeToMove만큼 front_이동시키고 현재 rear_를 반환함.
+int RingBuffer::MoveOutPos(int iSizeToMove)
 {
-	front_ = (front_ + sizeToMove) % (BUFFER_SIZE + 1);
-	return front_;
-}
-
-// 현재 front_인덱스에 알맞는 포인터를 반환
-char* RingBuffer::GetFrontPtr(void)
-{
-	return pBuffer_ + front_;
-}
-
-// 현재 rear_ 인덱스에 알맞는 포인터를 반환
-char* RingBuffer::GetRearPtr(void)
-{
-	return pBuffer_ + rear_;
+	MoveInOrOutPos_MACRO(iOutPos_, iSizeToMove);
+	return iOutPos_;
 }
 
 char* RingBuffer::GetWriteStartPtr(void)
 {
-	return pBuffer_ + ((rear_ + 1) % (BUFFER_SIZE + 1));
+	char* pRet;
+	GetInStartPtr_MACRO(pRet);
+	return pRet;
 }
 
 char* RingBuffer::GetReadStartPtr(void)
 {
-	return pBuffer_ + ((front_ + 1) % (BUFFER_SIZE + 1));
+	char* pRet;
+	GetOutStartPtr_MACRO(pRet);
+	return pRet;
 }
 
-#pragma warning(default : 4267)
 

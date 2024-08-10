@@ -1,20 +1,63 @@
 #pragma once
+#include <winsock2.h>
+#include <windows.h>
 #include "RingBuffer.h"
-#include "LinkedList.h"
-#include "HashTable.h"
+#include "MiddleWare.h"
 
-class RingBuffer;
-struct STATIC_HASH_METADATA;
+#include "Constant.h"
+
+
 struct st_Session
 {
-	unsigned id;
-	SOCKET clientSock;
-	RingBuffer recvBuffer;
-	RingBuffer sendBuffer;
+public:
+	DWORD dwID;
 	DWORD dwLastRecvTime;
-	STATIC_HASH_METADATA shm;
-	st_Session(SOCKET sock, unsigned ID)
-		:clientSock{ sock }, id{ ID }
-	{}
+	void* pClient;
+	CHAR IsValid;
+	SOCKET clientSock;
+	RingBuffer recvRB;
+	RingBuffer sendRB;
 };
+
+
+
+struct st_DisconInfo
+{
+	st_Session* DisconInfoArr[MAX_SESSION];
+	DWORD dwDisconNum = 0;
+};
+
+extern st_Session* g_pSessionArr[MAX_SESSION];
+extern DWORD g_dwSessionNum;
+extern st_DisconInfo g_DisconInfo;
+extern DWORD g_dwHandleOffset;
+
+
+
+extern st_Session* g_pSessionArr[MAX_SESSION];
+
+__forceinline BOOL IsSessionInValid(st_Session* pSession)
+{
+	return (pSession->IsValid == INVALID);
+}
+
+__forceinline BOOL IsSessionFull()
+{
+	return (g_dwSessionNum >= MAX_SESSION);
+}
+
+__forceinline BOOL ReserveSessionDisconnected(st_Session* pSession)
+{
+	pSession->IsValid = INVALID;
+	g_DisconInfo.DisconInfoArr[g_DisconInfo.dwDisconNum++] = pSession;
+	return TRUE;
+}
+
+void RegisterSession(SOCKET sock, DWORD dwID, DWORD dwRecvTime);
+void RemoveSession(st_Session* pSession);
+void RemoveSession(NETWORK_HANDLE handle);
+BOOL InitSessionState();
+void ClearSessionInfo();
+
+
 

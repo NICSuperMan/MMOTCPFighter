@@ -43,16 +43,16 @@ public:
 		pBuffer_ = pTempBuffer;
 	}
 
-	void Clear(void)
+	__forceinline void Clear(void)
 	{
 		front_ = rear_ = 0;
 	}
-	int GetBufferSize(void)
+	__forceinline int GetBufferSize(void)
 	{
 		return bufferSize_;
 	}
 
-	int GetData(OUT char* pDest, IN int sizeToGet)
+	__forceinline int GetData(OUT char* pDest, IN int sizeToGet)
 	{
 		if (rear_ - front_ < sizeToGet)
 		{
@@ -66,7 +66,7 @@ public:
 		}
 	}
 
-	int PutData(IN char* pSrc, IN int sizeToPut)
+	__forceinline int PutData(IN char* pSrc, IN int sizeToPut)
 	{
 		if (bufferSize_ - rear_ < sizeToPut)
 		{
@@ -77,23 +77,23 @@ public:
 		return sizeToPut;
 	}
 
-	int GetUsedDataSize(void)
+	__forceinline int GetUsedDataSize(void)
 	{
 		return rear_ - front_;
 	}
 
-	char* GetBufferPtr(void)
+	__forceinline char* GetBufferPtr(void)
 	{
 		return pBuffer_;
 	}
 
-	int MoveWritePos(IN int sizeToWrite)
+	__forceinline int MoveWritePos(IN int sizeToWrite)
 	{
 		rear_ += sizeToWrite;
 		return sizeToWrite;
 	}
 
-	int MoveReadPos(IN int sizeToRead)
+	__forceinline int MoveReadPos(IN int sizeToRead)
 	{
 		front_ += sizeToRead;
 		return sizeToRead;
@@ -103,7 +103,7 @@ public:
 	int front_;
 	int rear_;
 
-	SerializeBuffer& operator <<(IN const unsigned char value)
+	__forceinline SerializeBuffer& operator <<(IN const unsigned char value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -113,7 +113,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned char& value)
+	__forceinline SerializeBuffer& operator >>(OUT unsigned char& value)
 	{
 		// value의 size만큼 읽을게 없음.
 		if (rear_ - front_ < sizeof(value))
@@ -126,7 +126,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const char value)
+	__forceinline SerializeBuffer& operator <<(IN const char value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -136,7 +136,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT char& value)
+	__forceinline SerializeBuffer& operator >>(OUT char& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -148,7 +148,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const short value)
+	__forceinline SerializeBuffer& operator <<(IN const short value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -158,7 +158,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT short& value)
+	__forceinline SerializeBuffer& operator >>(OUT short& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -170,7 +170,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const unsigned short value)
+	__forceinline SerializeBuffer& operator <<(IN const unsigned short value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -180,7 +180,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned short& value)
+	__forceinline SerializeBuffer& operator >>(OUT unsigned short& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -192,7 +192,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const int value)
+	__forceinline SerializeBuffer& operator <<(IN const int value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -202,7 +202,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT int& value)
+	__forceinline SerializeBuffer& operator >>(OUT int& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -214,7 +214,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const unsigned int value)
+	__forceinline SerializeBuffer& operator <<(IN const unsigned int value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -224,7 +224,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned int& value)
+	__forceinline SerializeBuffer& operator >>(OUT unsigned int& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -236,7 +236,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const long value)
+	__forceinline SerializeBuffer& operator <<(IN const long value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -247,7 +247,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator >>(OUT long& value)
+	__forceinline SerializeBuffer& operator >>(OUT long& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -259,7 +259,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const unsigned long value)
+	__forceinline SerializeBuffer& operator <<(IN const unsigned long value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -269,7 +269,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned long& value)
+	__forceinline SerializeBuffer& operator >>(OUT unsigned long& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -281,7 +281,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const __int64 value)
+	__forceinline SerializeBuffer& operator <<(IN const __int64 value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -292,7 +292,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator >>(OUT __int64& value)
+	__forceinline SerializeBuffer& operator >>(OUT __int64& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -304,7 +304,7 @@ public:
 		return *this;
 	}
 	//
-	SerializeBuffer& operator <<(IN const unsigned __int64 value)
+	__forceinline SerializeBuffer& operator <<(IN const unsigned __int64 value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -314,7 +314,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT unsigned __int64& value)
+	__forceinline SerializeBuffer& operator >>(OUT unsigned __int64& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -326,7 +326,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const float value)
+	__forceinline SerializeBuffer& operator <<(IN const float value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -336,7 +336,7 @@ public:
 		rear_ += sizeof(value);
 		return *this;
 	}
-	SerializeBuffer& operator >>(OUT float& value)
+	__forceinline SerializeBuffer& operator >>(OUT float& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{
@@ -348,7 +348,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator <<(IN const double value)
+	__forceinline SerializeBuffer& operator <<(IN const double value)
 	{
 		if (bufferSize_ - rear_ < sizeof(value))
 		{
@@ -359,7 +359,7 @@ public:
 		return *this;
 	}
 
-	SerializeBuffer& operator >>(OUT double& value)
+	__forceinline SerializeBuffer& operator >>(OUT double& value)
 	{
 		if (rear_ - front_ < sizeof(value))
 		{

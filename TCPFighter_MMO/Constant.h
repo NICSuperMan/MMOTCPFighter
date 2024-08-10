@@ -1,18 +1,6 @@
 #pragma once
 #define SERVERPORT  11402
 #define dfPACKET_CODE		0x89
-constexpr BYTE dfPACKET_MOVE_DIR_LL = 0;
-constexpr BYTE dfPACKET_MOVE_DIR_LU = 1;
-constexpr BYTE dfPACKET_MOVE_DIR_UU = 2;
-constexpr BYTE dfPACKET_MOVE_DIR_RU = 3;
-constexpr BYTE dfPACKET_MOVE_DIR_RR = 4;
-constexpr BYTE dfPACKET_MOVE_DIR_RD = 5;
-constexpr BYTE dfPACKET_MOVE_DIR_DD = 6;
-constexpr BYTE dfPACKET_MOVE_DIR_LD = 7;
-constexpr BYTE dfPACKET_MOVE_DIR_NOMOVE = 8;
-
-constexpr BYTE MOVE = 1;
-constexpr BYTE NOMOVE = 0;
 
 //-----------------------------------------------------------------
 // 30초 이상이 되도록 아무런 메시지 수신도 없는경우 접속 끊음.
@@ -31,7 +19,6 @@ constexpr int dfERROR_RANGE = 50;
 constexpr int MOVE_UNIT_X = 3;
 constexpr int MOVE_UNIT_Y = 2;
 
-constexpr char INIT_DIR = dfPACKET_MOVE_DIR_LL;
 constexpr int INIT_POS_X = 300;
 constexpr int INIT_POS_Y = 300;
 constexpr int INIT_HP = 100;
@@ -65,4 +52,4 @@ constexpr int dwNumOfSectorHorizon = dfRANGE_MOVE_RIGHT / df_SECTOR_WIDTH;
 constexpr int dwNumOfSectorVertical = dfRANGE_MOVE_BOTTOM / df_SECTOR_HEIGHT;
 
 constexpr DWORD dwTimeOut = 30 * 1000;
-
+constexpr DWORD MAX_SESSION = 7800;

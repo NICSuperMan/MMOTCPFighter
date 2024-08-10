@@ -5,9 +5,19 @@
 #include <conio.h>
 #include "Network.h"
 #include "Logger.h"
-#include "ClientManager.h"
-#include "SessionManager.h"
 #include <stdio.h>
+
+#include "MiddleWare.h"
+#include "Callback.h"
+
+#include "Client.h"
+#include "MemoryPool.h"
+
+#include "Constant.h"
+
+#include "process.h"
+
+
 #pragma comment(lib,"Winmm.lib")
 #ifdef _M_IX86
 #ifdef _DEBUG
@@ -33,23 +43,31 @@
 constexpr int TICK_PER_FRAME = 20;
 constexpr int FRAME_PER_SECONDS = (1000) / TICK_PER_FRAME;
 void Update();
+void ClearSessionInfo();
 
 BOOL g_bShutDown = FALSE;
 int g_iSyncCount = 0;
 int g_iDisconCount = 0;
-int g_iNetworkLoop = 0;
+int iNetworkLoop = 0;
 int g_iDisConByRBFool = 0;
 int g_iDisConByTimeOut = 0;
 
-void ServerControl(void)
+extern MEMORYPOOL g_ClientMemoryPool;
+extern DWORD g_dwSessionNum;
+
+
+
+unsigned __stdcall ServerControl(void* pParam)
 {
 	static bool bControlMode = FALSE;
 	WCHAR ControlKey;
 
 	// L : 컨트롤 Lock / U : 컨트롤 Unlock / Q : 서버종료
-
-	if (_kbhit())
+	while (!g_bShutDown)
 	{
+		if (!_kbhit())
+			continue;
+
 		ControlKey = _getwch();
 
 		if (L'u' == ControlKey || L'U' == ControlKey)
@@ -73,18 +91,19 @@ void ServerControl(void)
 
 		if (L'k' == ControlKey || L'K' == ControlKey && bControlMode)
 		{
-			++g_iLogLevel;
+			InterlockedIncrement((LONG*)&g_iLogLevel);
 			wprintf(L"Log Level : %d\n", g_iLogLevel);
 		}
 
 		if (L'j' == ControlKey || L'J' == ControlKey && bControlMode)
 		{
-			--g_iLogLevel;
+			InterlockedDecrement((LONG*)&g_iLogLevel);
 			wprintf(L"Log Level : %d\n", g_iLogLevel);
 		}
 	}
-
+	return 0;
 }
+
 
 int main()
 {
@@ -92,6 +111,7 @@ int main()
 	int iFpsCheck;
 	int iTime;
 	int iFPS;
+	int iNetworkLoop;
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, GetStdHandle(STD_OUTPUT_HANDLE));
@@ -101,6 +121,13 @@ int main()
 	{
 		return 0;
 	}
+
+	HANDLE hMonitoring = (HANDLE)_beginthreadex(nullptr, 0, ServerControl, nullptr, 0, nullptr);
+
+	InitializeMiddleWare(CreatePlayer, RemoveClient_IMPL, PacketProc, offsetof(st_Client, handle));
+	g_ClientMemoryPool = CreateMemoryPool(sizeof(st_Client), MAX_SESSION);
+
+	iNetworkLoop = 0;
 	iFPS = 0;
 	iOldFrameTick = timeGetTime();
 	iTime = iOldFrameTick;
@@ -108,11 +135,11 @@ int main()
 
 	while (!g_bShutDown)
 	{
+		NetworkProc();
+		++iNetworkLoop;
 		iTime = timeGetTime();
 		if (iTime - iOldFrameTick >= TICK_PER_FRAME)
 		{
-			NetworkProc();
-			++g_iNetworkLoop;
 			Update();
 			iOldFrameTick += TICK_PER_FRAME;
 			++iFPS;
@@ -122,19 +149,19 @@ int main()
 			iFpsCheck += 1000;
 			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
 			_LOG(dwLog_LEVEL_SYSTEM, L"FPS : %d", iFPS);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Network Loop Num: %u", g_iNetworkLoop);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Network Loop Num: %u", iNetworkLoop);
 			_LOG(dwLog_LEVEL_SYSTEM, L"SyncCount : %d", g_iSyncCount);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count : %d", g_iDisconCount);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count By TimeOut : %d", g_iDisConByTimeOut);
 			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnected By RingBuffer FOOL : %u", g_iDisConByRBFool);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_pClientManager->dwClientNum_);
+			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_dwSessionNum);
 			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
-			g_iNetworkLoop = 0;
+			iNetworkLoop = 0;
 			iFPS = 0;
 		}
-		ServerControl();
 	}
-	//ClearSessionInfo();
+	WaitForSingleObject(hMonitoring, INFINITE);
+	ClearSessionInfo();
 	timeEndPeriod(1);
 	return 0;
 }

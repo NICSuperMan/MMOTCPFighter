@@ -18,31 +18,13 @@
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="RingBuffer.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="Network.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="SessionManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="HashTable.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="LinkedList.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Logger.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="DisconnectManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="ClientManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="CStub.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Sector.cpp">
@@ -54,24 +36,27 @@
     <ClCompile Include="Update.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="RingBuffer.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="CSCContents.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="CallBack.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Network.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="RingBuffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="SerializeBuffer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="MemoryPool.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="SessionManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="HashTable.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="LinkedList.h">
@@ -83,16 +68,7 @@
     <ClInclude Include="Session.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="DisconnectManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="Client.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="ClientManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="CStub.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Constant.h">
@@ -105,6 +81,24 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Update.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="RingBuffer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="MiddleWare.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="CSCContents.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Direction.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Position.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="CallBack.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

@@ -38,13 +38,13 @@ void LinkToLinkedListLast(LINKED_NODE** ppHead, LINKED_NODE** ppTail, LINKED_NOD
 
 void UnLinkFromLinkedList(LINKED_NODE** ppHead, LINKED_NODE** ppTail, LINKED_NODE* pVictim)
 {
-#ifdef _DEBUG
+//#ifdef _DEBUG
 	// Check the integrity of the connections between the node you want to delete and its previous node 
 	if (pVictim->pPrev && pVictim->pPrev->pNext != pVictim)
 	{
 		__debugbreak();
 	}
-#endif
+//#endif
 
 	if (pVictim->pPrev)
 	{
@@ -53,13 +53,13 @@ void UnLinkFromLinkedList(LINKED_NODE** ppHead, LINKED_NODE** ppTail, LINKED_NOD
 	else
 	{
 		// pVictim is the first node in the linked list,then update ppHead to pVictim's next node
-#ifdef _DEBUG
+//#ifdef _DEBUG
 		if (pVictim != (*ppHead))
 		{
 			// pHead not referencing pVictim even though there are no previous nodes of pVictim
 			__debugbreak();
 		}
-#endif
+//#endif
 		(*ppHead) = pVictim->pNext;
 	}
 

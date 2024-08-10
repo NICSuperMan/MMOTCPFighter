@@ -1,77 +1,51 @@
 #pragma once
+#include "Client.h"
+#include <cstddef>
+#include "Position.h"
+#include "Direction.h"
 #include "LinkedList.h"
+
 #include "Constant.h"
-#include "Sector.h"
+
 struct st_Client;
 
-struct st_POS
+struct st_SECTOR_CLIENT_INFO
 {
-	SHORT shY;
-	SHORT shX;
+	LINKED_NODE* pClientLinkHead = nullptr;
+	LINKED_NODE* pClientLinkTail = nullptr;
+	DWORD dwNumOfClient = 0;
 };
 
-struct st_SECTOR_POS
-{
-	SHORT shY;
-	SHORT shX;
-};
+extern st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
+
 
 struct st_MOVEINFO
 {
-	st_POS Prev;
-	st_POS Cur;
+	Pos Prev;
+	Pos Cur;
 };
 
 struct st_SECTOR_AROUND
 {
-	st_SECTOR_POS Around[9];
+	SectorPos Around[9];
 	BYTE byCount; // 0 ~ 9
 };
 
 struct st_DirVector
 {
-	SHORT shY;
-	SHORT shX;
+	char byY;
+	char byX;
 };
 
-
-
-constexpr st_DirVector vArr[8] = {
-	st_DirVector{0,-1},//LL
-	st_DirVector{-1,-1},//LU
-	st_DirVector{-1,0},//UU
-	st_DirVector{-1,1}, //RU
-	st_DirVector{0,1}, //RR
-	st_DirVector{1,1}, //RD
-	st_DirVector{1,0}, // DD
-	st_DirVector{1,-1} //LD
-};
-
-// 이동후 OldSector에서 현재 캐릭터의 이동방향을 해당 배열의 인덱스로 대입해서 얻은 방향을 GetDeltaSector에 대입
-constexpr BYTE removeDirArr[8] =
+union AroundInfo
 {
-	dfPACKET_MOVE_DIR_RU, //LL
-	dfPACKET_MOVE_DIR_RU, //LU
-	dfPACKET_MOVE_DIR_RD, //UU
-	dfPACKET_MOVE_DIR_RD, //RU
-	dfPACKET_MOVE_DIR_LD, //RR
-	dfPACKET_MOVE_DIR_LD, //RD
-	dfPACKET_MOVE_DIR_LU, //DD
-	dfPACKET_MOVE_DIR_LU, //LD
+	struct st_AroundClientInfo
+	{
+		DWORD dwNum;
+		st_Client* cArr[7800];
+	}CI;
 };
 
-// 이동후 NewSecotr에서 현재 캐릭터의 이동방향을 해당 배열의 인덱스로 대입해서 얻은 방향을 GetDeltaSctor에 대입
-constexpr BYTE AddDirArr[8] =
-{
-	dfPACKET_MOVE_DIR_LD, //LL
-	dfPACKET_MOVE_DIR_LD, //LU
-	dfPACKET_MOVE_DIR_LU, //UU
-	dfPACKET_MOVE_DIR_LU, //RU,
-	dfPACKET_MOVE_DIR_RU, //RR
-	dfPACKET_MOVE_DIR_RU, //RD
-	dfPACKET_MOVE_DIR_RD, //DD
-	dfPACKET_MOVE_DIR_RD, //LD
-};
 
 __forceinline BOOL IsValidSector(int iSectorY, int iSectorX)
 {
@@ -80,6 +54,28 @@ __forceinline BOOL IsValidSector(int iSectorY, int iSectorX)
 	bValidVertical = (iSectorY >= 0) && (iSectorY < dwNumOfSectorVertical); // Y축 정상
 	bValidHorizon = (iSectorX >= 0) && (iSectorX < dwNumOfSectorHorizon); // X축 정상
 	return bValidVertical && bValidHorizon; // 둘다 정상이면 TRUE
+}
+
+#pragma optimize("",on)
+__forceinline BOOL IsValidSector(SectorPos sp)
+{
+	BOOL bValidVertical;
+	BOOL bValidHorizon;
+	bValidVertical = (sp.shY >= 0) && (sp.shY < dwNumOfSectorVertical); // Y축 정상
+	bValidHorizon = (sp.shX >= 0) && (sp.shX < dwNumOfSectorHorizon); // X축 정상
+	return bValidVertical && bValidHorizon; // 둘다 정상이면 TRUE
+}
+
+__forceinline BYTE GetSectorMoveDir(SectorPos oldSector, SectorPos newSector)
+{
+	SHORT shCompY;
+	SHORT shCompX;
+
+	shCompX = newSector.shX - oldSector.shX;
+	shCompY = newSector.shY - oldSector.shY;
+	if (SectorMoveDir[shCompY + 1][shCompX + 1] == 8)
+		__debugbreak();
+	return SectorMoveDir[shCompY + 1][shCompX + 1];
 }
 
 static __forceinline BOOL IsSameSector(SHORT shOldSectorY, SHORT shOldSectorX, SHORT shNewSectorY, SHORT shNewSectorX)
@@ -93,6 +89,11 @@ static __forceinline BOOL IsSameSector(SHORT shOldSectorY, SHORT shOldSectorX, S
 	return bRet;
 }
 
+static __forceinline BOOL IsSameSector(SectorPos oldSector, SectorPos newSector)
+{
+	return oldSector.YX == newSector.YX;
+}
+
 static __forceinline BOOL IsValidPos(SHORT shY, SHORT shX)
 {
 	BOOL bRet;
@@ -103,6 +104,18 @@ static __forceinline BOOL IsValidPos(SHORT shY, SHORT shX)
 	bRet = bValidY && bValidX;
 	return bRet;
 }
+
+static __forceinline BOOL IsValidPos(Pos pos)
+{
+	BOOL bRet;
+	BOOL bValidY;
+	BOOL bValidX;
+	bValidY = (dfRANGE_MOVE_TOP <= pos.shY && pos.shY < dfRANGE_MOVE_BOTTOM);
+	bValidX = (dfRANGE_MOVE_LEFT <= pos.shX && pos.shX < dfRANGE_MOVE_RIGHT);
+	bRet = bValidY && bValidX;
+	return bRet;
+}
+#pragma optimize("",off)
 
 // 제거된 섹터를 얻을때는 BaseSector에 OldSector대입
 // 새로운 섹터를 얻을때는 BaseSector에 NewSector대입
@@ -126,47 +139,76 @@ __forceinline void GetDeltaSector(BYTE byBaseDir, st_SECTOR_AROUND* pSectorAroun
 	}
 }
 
-__forceinline BYTE GetReverseDir(BYTE byOriginalDir)
+__forceinline void GetValidClientFromSector(SectorPos sectorPos, AroundInfo* pAroundInfo, int* pNum, st_Client* pExcept)
 {
-	switch (byOriginalDir)
+	LINKED_NODE* pCurLink;
+	st_SECTOR_CLIENT_INFO* pSCI;
+	st_Client* pClient;
+
+	pSCI = &(g_Sector[sectorPos.shY][sectorPos.shX]);
+	pCurLink = pSCI->pClientLinkHead;
+	for (DWORD i = 0; i < pSCI->dwNumOfClient; ++i)
 	{
-	case dfPACKET_MOVE_DIR_LL:
-		return dfPACKET_MOVE_DIR_RR;
-	case dfPACKET_MOVE_DIR_LU:
-		return dfPACKET_MOVE_DIR_RD;
-	case dfPACKET_MOVE_DIR_UU:
-		return dfPACKET_MOVE_DIR_DD;
-	case dfPACKET_MOVE_DIR_RU:
-		return dfPACKET_MOVE_DIR_LD;
-	case dfPACKET_MOVE_DIR_RR:
-		return dfPACKET_MOVE_DIR_LL;
-	case dfPACKET_MOVE_DIR_RD:
-		return dfPACKET_MOVE_DIR_LU;
-	case dfPACKET_MOVE_DIR_DD:
-		return dfPACKET_MOVE_DIR_UU;
-	case dfPACKET_MOVE_DIR_LD:
-		return dfPACKET_MOVE_DIR_RU;
-	default:
-		__debugbreak();
+		pClient = LinkToClient(pCurLink);
+
+		// 함수이름앞에 Valid가 붙은 이유
+		if (IsNetworkStateInValid(pClient->handle))
+			goto lb_next;
+
+		if (pClient == pExcept)
+			goto lb_next;
+
+		pAroundInfo->CI.cArr[*pNum] = pClient;
+		++(*pNum);
+
+	lb_next:
+		pCurLink = pCurLink->pNext;
 	}
 }
 
-void GetSectorAround(SHORT shPosY, SHORT shPosX, st_SECTOR_AROUND* pOutSectorAround);
-void SendPacket_SectorOne(const st_SECTOR_POS* pSectorPos, char* pPacket, DWORD dwPacketSize, const st_Client* pExceptClient);
-void GetUpdateSectorAround(st_Client* pClient, st_SECTOR_AROUND* pRemoveSector, st_SECTOR_AROUND* pOutAddSector);
-void SendPacket_Around(const st_Client* pClient, const st_SECTOR_AROUND* pSectorAround, char* pPacket, DWORD dwPacketSize, BOOL bSendMe);
-void AddClientAtSector(st_Client* pClient, SHORT shNewSectorY, SHORT shNewSectorX);
-void RemoveClientAtSector(st_Client* pClient, SHORT shOldSectorY, SHORT shOldSectorX);
+void GetSectorAround(SectorPos CurSector, st_SECTOR_AROUND* pOutSectorAround);
 
 
-
-struct st_SECTOR_CLIENT_INFO
+#pragma optimize("",on)
+__forceinline void CalcSector(SectorPos* pSP, Pos pos)
 {
-	LINKED_NODE* pClientLinkHead = nullptr;
-	LINKED_NODE* pClientLinkTail = nullptr;
-	DWORD dwNumOfClient = 0;
-};
+	pSP->shY = pos.shY / df_SECTOR_HEIGHT;
+	pSP->shX = pos.shX / df_SECTOR_WIDTH;
+}
+#pragma optimize("",off)
 
-extern st_SECTOR_CLIENT_INFO g_Sector[dwNumOfSectorVertical][dwNumOfSectorHorizon];
+inline void GetSectorAround(SHORT shPosY, SHORT shPosX, st_SECTOR_AROUND* pOutSectorAround)
+{
+	int iSectorY;
+	int iSectorX;
+	int iAroundSectorY;
+	int iAroundSectorX;
+	SHORT* pCount;
 
+	iSectorY = shPosY / df_SECTOR_HEIGHT;
+	iSectorX = shPosX / df_SECTOR_WIDTH;
+	pCount = (SHORT*)((char*)pOutSectorAround + offsetof(st_SECTOR_AROUND, byCount));
+	*pCount = 0;
+
+
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			iAroundSectorY = iSectorY + dy;
+			iAroundSectorX = iSectorX + dx;
+			if (IsValidSector(iAroundSectorY, iAroundSectorX))
+			{
+				pOutSectorAround->Around[*pCount].shY = iAroundSectorY;
+				pOutSectorAround->Around[*pCount].shX = iAroundSectorX;
+				++(*pCount);
+			}
+		}
+	}
+}
+
+void AddClientAtSector(st_Client* pClient, SectorPos newSectorPos);
+void RemoveClientAtSector(st_Client* pClient, SectorPos oldSectorPos);
+AroundInfo* GetAroundValidClient(SectorPos sp, st_Client* pExcept);
+AroundInfo* GetDeltaValidClient(BYTE byBaseDir, BYTE byDeltaSectorNum, SectorPos SectorBasePos);
 

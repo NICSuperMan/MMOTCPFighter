@@ -1,5 +1,4 @@
 #pragma once
-// 나중에 자료구조 바뀔수도잇으니 래핑함
 
 
 struct Header
@@ -11,8 +10,6 @@ struct Header
 
 BOOL NetworkInitAndListen();
 BOOL AcceptProc();
-//void SendProc(Session* pSession);
-BOOL EnqPacketUnicast(const DWORD dwID, char* pPacket, const size_t packetSize);
 BOOL NetworkProc();
 
 
