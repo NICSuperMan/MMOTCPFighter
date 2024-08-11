@@ -47,6 +47,7 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 	serverPos = pClient->pos;
 	_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_START ID : %u, STOP POS X : %d, Y : %d", dwFromId, clientPos.shX, clientPos.shY);
 
+	CalcSector(&oldSector, serverPos);
 
 	// 이동중에 방향을 바꿔서 STOP이 오지않고 또 다시 START가 왓는데, 이때 서버 프레임이 떨어져서 싱크가 발생하는 경우.
 	if (IsSync(serverPos, clientPos))
@@ -54,12 +55,13 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 		//_LOG(dwLog_LEVEL_SYSTEM, L"Send Sync To Client : %u X : %d, Y : %d -> X : %d, Y : %d", dwFromId, shX, shY, shServerX, shServerY);
 		++g_iSyncCount;
 		dwSyncPacketSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
-		EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncPacketSize);
+		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
+		for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
+			EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncPacketSize);
 		g_sb1.Clear();
 		clientPos = serverPos;
 	}
 
-	CalcSector(&oldSector, serverPos);
 	CalcSector(&newSector, clientPos);
 
 	// dfERROR_RANGE보다 오차가 작지만, 섹터가 틀려서 섹터를 클라기준으로 맞출경우 업데이트 
@@ -298,18 +300,20 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 	dwFromId = pClient->dwID;
 	serverPos = pClient->pos;
 
+	CalcSector(&oldSector, serverPos);
 	// 임시방편
 	_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_STOP ID : %u, STOP POS X : %d, Y : %d", dwFromId, ClientPos.shX, ClientPos.shY);
 	if (IsSync(serverPos, ClientPos))
 	{
 		++g_iSyncCount;
 		dwSyncSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
-		EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncSize);
+		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
+		for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
+			EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncSize);
 		g_sb1.Clear();
 		ClientPos = serverPos;
 	}
 
-	CalcSector(&oldSector, serverPos);
 	CalcSector(&newSector, ClientPos);
 	// dfERROR_RANGE보다 오차가 작지만, 섹터가 틀려서 섹터를 클라기준으로 맞출경우 업데이트 
 	if (!IsSameSector(oldSector, newSector))

@@ -43,8 +43,8 @@ constexpr int dfATTACK3_DAMAGE = 3;
 //-----------------------------------------------------------------
 // 캐릭터 이동 속도   // 50fps 기준 이동속도
 //-----------------------------------------------------------------
-constexpr int dfSPEED_PLAYER_X = 3	;
-constexpr int dfSPEED_PLAYER_Y = 2	;
+constexpr int dfSPEED_PLAYER_X = 6;
+constexpr int dfSPEED_PLAYER_Y = 4;
 
 constexpr int df_SECTOR_WIDTH = 160;
 constexpr int df_SECTOR_HEIGHT = 160;
