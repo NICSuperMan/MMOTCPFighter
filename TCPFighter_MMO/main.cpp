@@ -155,6 +155,11 @@ int main()
 	}
 
 	HANDLE hMonitoring = (HANDLE)_beginthreadex(nullptr, 0, ServerControl, nullptr, 0, nullptr);
+	if (hMonitoring == INVALID_HANDLE_VALUE)
+	{
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"Monitoring Thread _beginthreadex() func failed");
+	}
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"Monitoring Thread Created!");
 
 	InitializeMiddleWare(CreatePlayer, RemoveClient_IMPL, PacketProc, offsetof(st_Client, handle));
 	g_ClientMemoryPool = CreateMemoryPool(sizeof(st_Client), MAX_SESSION);
