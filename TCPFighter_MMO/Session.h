@@ -15,8 +15,8 @@ public:
 	void* pClient;
 	CHAR IsValid;
 	SOCKET clientSock;
-	RingBuffer recvRB;
-	RingBuffer sendRB;
+	RingBuffer* pRecvRB;
+	RingBuffer* pSendRB;
 };
 
 
@@ -55,7 +55,6 @@ __forceinline BOOL ReserveSessionDisconnected(st_Session* pSession)
 
 void RegisterSession(SOCKET sock, DWORD dwID, DWORD dwRecvTime);
 void RemoveSession(st_Session* pSession);
-void RemoveSession(NETWORK_HANDLE handle);
 BOOL InitSessionState();
 void ClearSessionInfo();
 

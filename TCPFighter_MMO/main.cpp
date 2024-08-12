@@ -17,6 +17,8 @@
 
 #include "process.h"
 
+#include "Logger.h"
+
 
 #pragma comment(lib,"Winmm.lib")
 #ifdef _M_IX86
@@ -95,24 +97,41 @@ unsigned __stdcall ServerControl(void* pParam)
 
 		if (L'k' == ControlKey || L'K' == ControlKey && bControlMode)
 		{
-			InterlockedIncrement((LONG*)&g_iLogLevel);
-			wprintf(L"Log Level : %d\n", g_iLogLevel);
+			LOG_LEVEL level = INCREASE_LOG_LEVEL();
+			wprintf(L"Log Level : %d\n", level);
 		}
 
 		if (L'j' == ControlKey || L'J' == ControlKey && bControlMode)
 		{
-			InterlockedDecrement((LONG*)&g_iLogLevel);
-			wprintf(L"Log Level : %d\n", g_iLogLevel);
+			LOG_LEVEL level = DECREASE_LOG_LEVEL();
+			wprintf(L"Log Level : %d\n", level);
 		}
 
 		if (L'D' == ControlKey || L'd' == ControlKey && bControlMode)
 		{
-			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
-			_LOG(dwLog_LEVEL_SYSTEM, L"Client Number : %u", g_dwSessionNum);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count : %d", g_iDisconCount);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnect Count By TimeOut : %d", g_iDisConByTimeOut);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Disconnected By RingBuffer FOOL : %u", g_iDisConByRBFool);
-			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
+			FILETIME ftCreationTime, ftExitTime, ftKernelTime, ftUsertTime;
+			FILETIME ftCurTime;
+			GetProcessTimes(GetCurrentProcess(), &ftCreationTime, &ftExitTime, &ftKernelTime, &ftUsertTime);
+			GetSystemTimeAsFileTime(&ftCurTime);
+
+			ULARGE_INTEGER start, now;
+			start.LowPart = ftCreationTime.dwLowDateTime;
+			start.HighPart = ftCreationTime.dwHighDateTime;
+			now.LowPart = ftCurTime.dwLowDateTime;
+			now.HighPart = ftCurTime.dwHighDateTime;
+ 
+			ULONGLONG ullElapsedSecond = (now.QuadPart - start.QuadPart) / 10000 / 1000;
+			ULONGLONG ullElapsedMin = ullElapsedSecond / 60;
+			ULONGLONG ullElapsedHour = ullElapsedMin / 60;
+			ULONGLONG ullElapsedDay = ullElapsedHour / 24;
+
+			printf("-----------------------------------------------------\n");
+			printf("Elapsed Time : %02lluD-%02lluH-%02lluMin-%02lluSec\n", ullElapsedDay, ullElapsedHour, ullElapsedMin, ullElapsedSecond);
+			printf("Client Number : %u\n", g_dwSessionNum);
+			printf("Disconnect Count : %d\n", g_iDisconCount);
+			printf("Disconnect By TimeOut : %d\n", g_iDisConByTimeOut);
+			printf("Didsconnected By RingBuffer FOOL : %u\n", g_iDisConByRBFool);
+			printf("-----------------------------------------------------\n");
 		}
 
 	}
@@ -122,15 +141,13 @@ unsigned __stdcall ServerControl(void* pParam)
 
 int main()
 {
-	//int g_iOldFrameTick;
-	//int g_iFpsCheck;
-	//int g_iTIme;
-	//int g_iFPS;
-	//int g_iNetworkLoop;
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, GetStdHandle(STD_OUTPUT_HANDLE));
 	srand((unsigned)time(nullptr));
+
+	InitLogger(L"LOG");
+
 	timeBeginPeriod(1);
 	if (!NetworkInitAndListen())
 	{
@@ -162,17 +179,18 @@ int main()
 		if (g_iTIme - g_iFpsCheck >= 1000)
 		{
 			g_iFpsCheck += 1000;
-			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
-			_LOG(dwLog_LEVEL_SYSTEM, L"FPS : %d", g_iFPS);
-			_LOG(dwLog_LEVEL_SYSTEM, L"Network Loop Num: %u", g_iNetworkLoop);
-			_LOG(dwLog_LEVEL_SYSTEM, L"SyncCount : %d", g_iSyncCount);
-			_LOG(dwLog_LEVEL_SYSTEM, L"-----------------------------------------------------");
+			printf("-----------------------------------------------------\n");
+			printf("FPS : %d\n", g_iFPS);
+			printf("Network Loop Num: %u\n", g_iNetworkLoop);
+			printf("SyncCount : %d\n", g_iSyncCount);
+			printf("-----------------------------------------------------\n");
 			g_iNetworkLoop = 0;
 			g_iFPS = 0;
 		}
 	}
 	WaitForSingleObject(hMonitoring, INFINITE);
 	ClearSessionInfo();
-	timeEndPeriod(1);
+	LOG(L"TERMINATE", SYSTEM, TEXTFILE, L"SyncCount : %d", g_iSyncCount);
+	ClearLogger();
 	return 0;
 }

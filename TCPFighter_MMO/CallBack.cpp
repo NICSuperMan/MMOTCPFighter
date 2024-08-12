@@ -40,7 +40,7 @@ void CALLBACK CreatePlayer(void** ppOutClient, NETWORK_HANDLE handle, DWORD dwID
 	pClient->CurSector = sector;
 
 	// 생성된 클라이언트에게 자기 자신이 생성되엇음을 알리기
-	_LOG(dwLog_LEVEL_DEBUG, L"Notify New Characters of his Location");
+	//_LOG(dwLog_LEVEL_DEBUG, L"Notify New Characters of his Location");
 	dwMSCMCSize = MAKE_SC_CREATE_MY_CHARACTER(dwID, dfPACKET_MOVE_DIR_LL, ClientPos, INIT_HP, g_sb1);
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwMSCMCSize);
 	g_sb1.Clear();
@@ -54,7 +54,7 @@ void CALLBACK CreatePlayer(void** ppOutClient, NETWORK_HANDLE handle, DWORD dwID
 	if (pAroundInfo->CI.dwNum <= 0)
 		goto lb_Add;
 
-	_LOG(dwLog_LEVEL_DEBUG, L"Notify clients in the surrounding 9 sectors of the creation of a new client");
+	//_LOG(dwLog_LEVEL_DEBUG, L"Notify clients in the surrounding 9 sectors of the creation of a new client");
 	dwMSCOCNewToOtherSize = MAKE_SC_CREATE_OTHER_CHARACTER(dwID, dfPACKET_MOVE_DIR_LL, ClientPos, INIT_HP, g_sb1);
 	dwMSCOCOtherToNewSize = 0;
 	dwMSMSSize = 0;
@@ -97,15 +97,15 @@ void CALLBACK RemoveClient_IMPL(void* pClient)
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSDCSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID %u Send Delete Character To %u  ( X : %u, Y : %u)", pRemoveClient->dwID, pAroundInfo->CI.cArr[i]->dwID,
-			pAroundInfo->CI.cArr[i]->CurSector.shX, pAroundInfo->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID %u Send Delete Character To %u  ( X : %u, Y : %u)", pRemoveClient->dwID, pAroundInfo->CI.cArr[i]->dwID,
+		//	pAroundInfo->CI.cArr[i]->CurSector.shX, pAroundInfo->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
 	RemoveClientAtSector(pRemoveClient, curSector);
 
 	RetMemoryToPool(g_ClientMemoryPool, pClient);
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Disconnected", pRemoveClient->dwID);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Disconnected", pRemoveClient->dwID);
 }
 
 BOOL CALLBACK PacketProc(void* pClient, BYTE byPacketType)

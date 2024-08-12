@@ -118,7 +118,7 @@ void Update()
 
 		//타임아웃 처리
 		dwTime = timeGetTime();
-		if (dwTime - GetLastRecvTime(g_pClientArr[i]->handle) > dwTimeOut + 100)
+		if (dwTime - GetLastRecvTime(g_pClientArr[i]->handle) > dwTimeOut)
 		{
 			++g_iDisConByTimeOut;
 			AlertSessionOfClientInvalid(g_pClientArr[i]->handle);
@@ -129,7 +129,7 @@ void Update()
 		if (g_pClientArr[i]->chHp <= 0)
 		{
 			AlertSessionOfClientInvalid(g_pClientArr[i]->handle);
-			_LOG(dwLog_LEVEL_DEBUG, L"Delete Client : %u By Dead", g_pClientArr[i]->dwID);
+			LOG(L"CONTENTSDISCON", ERR, TEXTFILE, L"Delete Client : %u By Dead HP : %c", g_pClientArr[i]->dwID, g_pClientArr[i]->dwID);
 			continue;
 		}
 
@@ -147,7 +147,7 @@ void Update()
 		if (!IsValidPos(newPos))
 			continue;
 
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u X : %d, Y : %d -> X : %d, Y : %d ", g_pClientArr[i]->dwID, oldPos.shX, oldPos.shY, newPos.shX, newPos.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u X : %d, Y : %d -> X : %d, Y : %d ", g_pClientArr[i]->dwID, oldPos.shX, oldPos.shY, newPos.shX, newPos.shY);
 
 		// 이동 후 섹터와 이전 섹터 계산
 		CalcSector(&oldSector, oldPos);

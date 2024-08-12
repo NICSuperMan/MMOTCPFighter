@@ -6,7 +6,10 @@
 
 #include <stdio.h>
 
+#include "Logger.h"
+
 MEMORYPOOL g_SessionMemoryPool;
+MEMORYPOOL g_RBMemoryPool;
 st_Session* g_pSessionArr[MAX_SESSION];
 st_DisconInfo g_DisconInfo;
 
@@ -34,8 +37,10 @@ void RegisterSession(SOCKET sock, DWORD dwID, DWORD dwRecvTime)
 	pSession->clientSock = sock;
 	pSession->dwLastRecvTime = dwRecvTime;
 	pSession->IsValid = VALID;
-	pSession->recvRB.iInPos_ = pSession->recvRB.iOutPos_ = 0;
-	pSession->sendRB.iInPos_ = pSession->sendRB.iOutPos_ = 0;
+	pSession->pRecvRB = (RingBuffer*)AllocMemoryFromPool(g_RBMemoryPool);
+	pSession->pRecvRB->iInPos_ = pSession->pRecvRB->iOutPos_ = 0;
+	pSession->pSendRB = (RingBuffer*)AllocMemoryFromPool(g_RBMemoryPool);
+	pSession->pSendRB->iInPos_ = pSession->pSendRB->iOutPos_ = 0;
 	g_pSessionArr[g_dwSessionNum] = pSession;
 
 	// 클라이언트가 제공한 콜백함수 호출, 아마도 CreatePlayer가 호출될것이다.
@@ -57,22 +62,23 @@ __forceinline void AlertClientOfHandleChange(st_Session* pSession, NETWORK_HANDL
 void RemoveSession(st_Session* pSession)
 {
 	NETWORK_HANDLE handle;
+	st_Session* pMoveSession;
+
 	handle = HackHandleFromClient(pSession->pClient);
 	RemoveClient(pSession->pClient);
-	g_pSessionArr[(DWORD)handle] = g_pSessionArr[g_dwSessionNum - 1];
+
+	// 끝부분은 세션을 옮겨주는 작업 필요없이 g_dwSessionNum만 감소시키면 됨
+	if (g_dwSessionNum - 1 != handle)
+	{
+		pMoveSession = g_pSessionArr[g_dwSessionNum - 1];
+		g_pSessionArr[(DWORD)handle] = pMoveSession;
+		AlertClientOfHandleChange(pMoveSession, handle);
+	}
 	closesocket(pSession->clientSock);
+	RetMemoryToPool(g_RBMemoryPool, pSession->pSendRB);
+	RetMemoryToPool(g_RBMemoryPool, pSession->pRecvRB);
 	RetMemoryToPool(g_SessionMemoryPool, pSession);
 	--g_dwSessionNum;
-	AlertClientOfHandleChange(g_pSessionArr[handle], handle);
-}
-
-void RemoveSession(NETWORK_HANDLE handle)
-{
-	closesocket(g_pSessionArr[(DWORD)handle]->clientSock);
-	RetMemoryToPool(g_SessionMemoryPool, g_pSessionArr[(DWORD)handle]);
-	g_pSessionArr[(DWORD)handle] = g_pSessionArr[g_dwSessionNum - 1];
-	--g_dwSessionNum;
-	*((NETWORK_HANDLE*)g_pSessionArr[(DWORD)handle] + g_dwHandleOffset) = handle;
 }
 
 void InitializeMiddleWare(REGISTER_CLIENT RegisterPlayer, REMOVE_CLIENT RemovePlayer, PACKET_PROC packetProcedure, DWORD HandleOffsetOwnByClient)
@@ -86,6 +92,7 @@ void InitializeMiddleWare(REGISTER_CLIENT RegisterPlayer, REMOVE_CLIENT RemovePl
 BOOL InitSessionState()
 {
 	g_SessionMemoryPool = CreateMemoryPool(sizeof(st_Session), MAX_SESSION);
+	g_RBMemoryPool = CreateMemoryPool(sizeof(RingBuffer), MAX_SESSION * 2);
 	return TRUE;
 }
 
@@ -108,15 +115,26 @@ BOOL GetAllValidClient(DWORD* pOutUserNum, void** ppOutClientArr)
 void ClearSessionInfo()
 {
 	int Leak;
+
 	for (DWORD i = 0; i < g_dwSessionNum; ++i)
 	{
-		RemoveSession(g_pSessionArr[i]);
+		ReserveSessionDisconnected(g_pSessionArr[i]);
 	}
 
-	Leak = ReportLeak(g_pSessionArr);
+	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
+	{
+		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
+	}
+
+	Leak = ReportLeak(g_SessionMemoryPool);
 	if (Leak != 0)
 	{
-		__debugbreak();
-		printf("Session Struct Memory Leak %d Num Occured!\n",Leak);
+		LOG(L"TERMINATE", ERR, TEXTFILE, L"Session Struct Memory Leak % d Num occured!", Leak);
+	}
+
+	Leak = ReportLeak(g_RBMemoryPool);
+	if (Leak != 0)
+	{
+		LOG(L"TERMINATE", ERR, TEXTFILE, L"RingBuffer Struct Memory Leak %d Num Occured!", Leak);
 	}
 }

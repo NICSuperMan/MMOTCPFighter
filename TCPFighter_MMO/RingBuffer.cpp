@@ -234,7 +234,10 @@ int RingBuffer::MoveInPos(int iSizeToMove)
 // sizeToMove만큼 front_이동시키고 현재 rear_를 반환함.
 int RingBuffer::MoveOutPos(int iSizeToMove)
 {
+	int OutPrev = iOutPos_;
 	MoveInOrOutPos_MACRO(iOutPos_, iSizeToMove);
+	if (OutPrev <= iInPos_ && iOutPos_ > iInPos_)
+		__debugbreak();
 	return iOutPos_;
 }
 

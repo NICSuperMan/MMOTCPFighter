@@ -1,19 +1,15 @@
 #pragma once
-constexpr int dwLog_LEVEL_DEBUG = 0;
-constexpr int dwLog_LEVEL_ERROR = 1;
-constexpr int dwLog_LEVEL_SYSTEM = 2;
-constexpr int dwLOG_LEVEL_DEVELOP = 3;
+#include <Windows.h>
+enum LOG_LEVEL { DEBUG, SYSTEM, ERR };
+#define CONSOLE 3
+#define TEXTFILE 4 
 
-extern int g_iLogLevel;
-extern WCHAR g_szLogBuff[1024];
+void InitLogger(const WCHAR* szPath);
+void ClearLogger();
 
-void Log(const WCHAR* pszString, int iLogLevel);
+LOG_LEVEL INCREASE_LOG_LEVEL();
+LOG_LEVEL DECREASE_LOG_LEVEL();
+void SET_LOG_LEVEL(LOG_LEVEL level);
+void LOG(const WCHAR* szHead, LOG_LEVEL LogLevel, CHAR OUTPUT, const WCHAR* szStringFormat, ...);
 
-#define _LOG(LogLevel, fmt, ...)                  \
-do{                                          \
-   if(g_iLogLevel <= LogLevel)                     \
-   {                                       \
-      wsprintf(g_szLogBuff, fmt,##__VA_ARGS__);      \
-      Log(g_szLogBuff, LogLevel);                  \
-   }                                       \
-} while (0) 
+

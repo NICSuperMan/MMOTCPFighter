@@ -45,7 +45,8 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 
 	dwFromId = pClient->dwID;
 	serverPos = pClient->pos;
-	_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_START ID : %u, STOP POS X : %d, Y : %d", dwFromId, clientPos.shX, clientPos.shY);
+
+	//_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_START ID : %u, STOP POS X : %d, Y : %d", dwFromId, clientPos.shX, clientPos.shY);
 
 	CalcSector(&oldSector, serverPos);
 
@@ -80,7 +81,7 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSMSSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_START To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
+		//_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_START To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
 	}
 	g_sb1.Clear();
 
@@ -302,7 +303,7 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 
 	CalcSector(&oldSector, serverPos);
 	// 임시방편
-	_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_STOP ID : %u, STOP POS X : %d, Y : %d", dwFromId, ClientPos.shX, ClientPos.shY);
+	//_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_STOP ID : %u, STOP POS X : %d, Y : %d", dwFromId, ClientPos.shX, ClientPos.shY);
 	if (IsSync(serverPos, ClientPos))
 	{
 		++g_iSyncCount;
@@ -333,7 +334,7 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSMSSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_STOP To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
+		//_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_STOP To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
 	}
 
 	g_sb1.Clear();
@@ -356,15 +357,15 @@ BOOL CS_ATTACK1(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 	if (IsNetworkStateInValid(pClient->handle))
 		return FALSE;
 
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK1", dwAttackerID);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK1", dwAttackerID);
 	CalcSector(&curSector, clientPos);
 	AroundInfo* pAround = GetAroundValidClient(curSector, pClient);
 	dwAttackSize = MAKE_SC_ATTACK(dwAttackerID, pClient->byViewDir, clientPos, 1, g_sb1);
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack1 Send To ID %u (X : %u , Y : %u)", dwAttackerID, 
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack1 Send To ID %u (X : %u , Y : %u)", dwAttackerID, 
+		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
@@ -383,13 +384,13 @@ BOOL CS_ATTACK1(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 			continue;
 
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		/*_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);*/
 		
 	}
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-		pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
 
 	return TRUE;
@@ -407,15 +408,15 @@ BOOL CS_ATTACK2(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 	if (IsNetworkStateInValid(pClient->handle))
 		return FALSE;
 
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK2", dwAttackerID);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK2", dwAttackerID);
 	CalcSector(&curSector, clientPos);
 	AroundInfo* pAround = GetAroundValidClient(curSector, pClient);
 	dwAttackSize = MAKE_SC_ATTACK(dwAttackerID, byViewDir, clientPos, 2, g_sb1);
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack2 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack2 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
+		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
@@ -434,12 +435,12 @@ BOOL CS_ATTACK2(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 			continue;
 
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-		pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
 	return TRUE;
 }
@@ -462,8 +463,8 @@ BOOL CS_ATTACK3(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack3 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack3 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
+		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
@@ -481,12 +482,12 @@ BOOL CS_ATTACK3(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 			continue;
 
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-		pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
+	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
+	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
 
 	return TRUE;

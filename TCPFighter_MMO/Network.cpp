@@ -6,14 +6,10 @@
 #include "Constant.h"
 #include "Network.h"
 #include "SerializeBuffer.h"
-#include "MemoryPool.h"
-#include "LinkedList.h"
 #include "RingBuffer.h"
 #include "Session.h"
-#include "Client.h"
 #include "Logger.h"
 
-#include "Constant.h"
 
 
 #pragma comment(lib,"ws2_32.lib")
@@ -44,10 +40,10 @@ BOOL NetworkInitAndListen()
 
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 	{
-		wprintf(L"WSAStartup() func error code : %d\n", WSAGetLastError());
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"WSAStartUp() Err Code %u", WSAGetLastError());
 		return FALSE;
 	}
-	_LOG(dwLog_LEVEL_DEBUG, L"WSAStartup()");
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"WSAStartUp()");
 	g_listenSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (g_listenSock == INVALID_SOCKET)
 	{
@@ -63,36 +59,36 @@ BOOL NetworkInitAndListen()
 	bindRet = bind(g_listenSock, (SOCKADDR*)&serverAddr, sizeof(serverAddr));
 	if (bindRet == SOCKET_ERROR)
 	{
-		wprintf(L"bind() func error code : %d\n", WSAGetLastError());
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"bind() Err Code %u", WSAGetLastError());
 		return FALSE;
 	}
-	_LOG(dwLog_LEVEL_DEBUG, L"Bind OK # Port : %d", SERVERPORT);
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"bind OK # Port : %d", SERVERPORT);
 
 	listenRet = listen(g_listenSock, SOMAXCONN);
 	if (listenRet == SOCKET_ERROR)
 	{
-		wprintf(L"listen() func error code : %d\n", WSAGetLastError());
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"listen() Err Code %u", WSAGetLastError());
 		return FALSE;
 	}
-	_LOG(dwLog_LEVEL_DEBUG, L"Listen OK #");
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"listen() OK");
 	linger.l_onoff = 1;
 	linger.l_linger = 0;
 	ssoRet = setsockopt(g_listenSock, SOL_SOCKET, SO_LINGER, (char*)&linger, sizeof(linger));
 	if (ssoRet != 0)
 	{
-		wprintf(L"setsockopt() func error code : %d\n", WSAGetLastError());
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"setsockopt() Err Code %u", WSAGetLastError());
 		return FALSE;
 	}
-
-	_LOG(dwLog_LEVEL_DEBUG, L"Linger OK #");
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"Linger OK #");
 
 	iMode = 1;
 	ioctlRet = ioctlsocket(g_listenSock, FIONBIO, &iMode);
 	if (ioctlRet != 0)
 	{
-		wprintf(L"ioctlsocket() func error code : %d\n", WSAGetLastError());
+		LOG(L"SERVERINIT", ERR, TEXTFILE, L"ioctlsocket() func err Code %u", WSAGetLastError());
 		return FALSE;
 	}
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"ioctlsocket() OK", WSAGetLastError());
 
 	InitSessionState();
 	g_sb1.AllocBuffer(10000);
@@ -106,11 +102,11 @@ BOOL EnqPacketRB(const void* pClient, char* pPacket, const DWORD packetSize)
 	int iEnqRet;
 
 	pSession = g_pSessionArr[*(NETWORK_HANDLE*)((char*)pClient + g_dwHandleOffset)];
-	if (!pSession->IsValid)
+	if (pSession->IsValid == INVALID)
 		return FALSE;
 
 
-	iEnqRet = pSession->sendRB.Enqueue(pPacket, packetSize);
+	iEnqRet = pSession->pSendRB->Enqueue(pPacket, packetSize);
 	if (iEnqRet == 0)
 	{
 		++g_iDisConByRBFool;
@@ -118,7 +114,6 @@ BOOL EnqPacketRB(const void* pClient, char* pPacket, const DWORD packetSize)
 		return FALSE;
 	}
 
-	//_LOG(dwLog_LEVEL_DEBUG, L"Session ID : %u, sendRB Enqueue Size : %d\tsendRB FreeSize : %d", dwID, iEnqRet, pSendRB->GetFreeSize());
 	return TRUE;
 }
 
@@ -172,7 +167,7 @@ __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_se
 
 	if (iSelectRet == SOCKET_ERROR)
 	{
-		_LOG(dwLog_LEVEL_DEBUG, L"Select Func Error Code : %d", WSAGetLastError());
+		//_LOG(dwLog_LEVEL_DEBUG, L"Select Func Error Code : %d", WSAGetLastError());
 		__debugbreak();
 		return;
 	}
@@ -217,7 +212,7 @@ BOOL NetworkProc()
 	{
 		pSession = g_pSessionArr[i];
 		FD_SET(pSession->clientSock, &readSet);
-		if (pSession->sendRB.GetUseSize() > 0)
+		if (pSession->pSendRB->GetUseSize() > 0)
 		{
 			FD_SET(pSession->clientSock, &writeSet);
 		}
@@ -246,7 +241,7 @@ BOOL NetworkProc()
 	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
 	{
 		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
-		_LOG(dwLog_LEVEL_DEBUG, L"Session Id : %u Disconnected", g_DisconInfo.DisconInfoArr[i]->dwID);
+		//_LOG(dwLog_LEVEL_DEBUG, L"Session Id : %u Disconnected", g_DisconInfo.DisconInfoArr[i]->dwID);
 		++g_iDisconCount;
 	}
 	g_DisconInfo.dwDisconNum = 0;
@@ -269,7 +264,7 @@ void SendProc(st_Session* pSession)
 	if(pSession->IsValid ==INVALID)
 		return;
 
-	pSendRB = &(pSession->sendRB);
+	pSendRB = pSession->pSendRB;
 
 	iUseSize = pSendRB->GetUseSize();
 	iDirectDeqSize = pSendRB->DirectDequeueSize();
@@ -292,15 +287,26 @@ void SendProc(st_Session* pSession)
 	}
 
 	iSendRet = WSASend(pSession->clientSock, wsa, iBufLen, &dwNOBS, 0, NULL, NULL);
+
+	// WOULDBLOCK은 그냥 리턴(당연히 보내지 않앗으니 반영도못한다)
+	// 10054 WSAECONNRESET은 정상종료이므로 로그 남기지않고 disconnect한다
 	if (iSendRet == SOCKET_ERROR)
 	{
 		iErrCode = WSAGetLastError();
-		if (iErrCode != WSAEWOULDBLOCK)
-		{
-			ReserveSessionDisconnected(pSession);
-			return;
-		}
+		if (iErrCode == WSAEWOULDBLOCK)
+			goto lb_return;
+
+		if (iErrCode == WSAECONNRESET)
+			goto lb_disconnect;
+
+
+		LOG(L"DISCON", ERR, TEXTFILE, L"Session ID : %u WSASend() err Code : %u", pSession->dwID, iErrCode);
+	lb_disconnect:
+		ReserveSessionDisconnected(pSession);
+	lb_return:
+		return;
 	}
+	
 	pSendRB->MoveOutPos(dwNOBS);
 }
 
@@ -319,7 +325,7 @@ BOOL RecvProc(st_Session* pSession)
 		return FALSE;
 
 	pSession->dwLastRecvTime = timeGetTime();
-	pRecvRB = &(pSession->recvRB);
+	pRecvRB = pSession->pRecvRB;
 	
 	iDirEnqSize = pRecvRB->DirectEnqueueSize();
 	iFreeSize = pRecvRB->GetFreeSize();
@@ -348,11 +354,16 @@ BOOL RecvProc(st_Session* pSession)
 	else if (iRecvRet == SOCKET_ERROR)
 	{
 		iErrCode = WSAGetLastError();
-		if (iErrCode != WSAEWOULDBLOCK)
-		{
-			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %d, recv() error code : %d\n", pSession->dwID, iErrCode);
-			ReserveSessionDisconnected(pSession);
-		}
+		if (iErrCode == WSAEWOULDBLOCK)
+			goto lb_return;
+
+		if (iErrCode == WSAECONNRESET)
+			goto lb_disconnect;
+
+		LOG(L"DISCON", ERR, TEXTFILE, L"Session ID : %u WSARecv() err Code : %u", pSession->dwID, iErrCode);
+	lb_disconnect:
+		ReserveSessionDisconnected(pSession);
+	lb_return:
 		return FALSE;
 	}
 	pRecvRB->MoveInPos(dwNOBR);
@@ -369,7 +380,7 @@ BOOL RecvProc(st_Session* pSession)
 		if (header.byCode != 0x89)
 		{
 			__debugbreak();
-			_LOG(dwLog_LEVEL_ERROR, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->dwID);
+			LOG(L"DISCON", ERR, TEXTFILE, L"Session ID : %u\tDisconnected by INVALID HeaderCode Packet Received", pSession->dwID);
 			ReserveSessionDisconnected(pSession);
 			return FALSE;
 		}
