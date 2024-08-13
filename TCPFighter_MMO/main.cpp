@@ -1,4 +1,5 @@
 #define _CRTDBG_MAP_ALLOC
+#define SYNC
 #include <time.h>
 #include <crtdbg.h>
 #include <windows.h>
@@ -6,6 +7,7 @@
 #include "Network.h"
 #include "Logger.h"
 #include <stdio.h>
+
 
 #include "MiddleWare.h"
 #include "Callback.h"
@@ -17,7 +19,6 @@
 
 #include "process.h"
 
-#include "Logger.h"
 
 
 #pragma comment(lib,"Winmm.lib")
@@ -58,9 +59,12 @@ extern DWORD g_dwSessionNum;
 
 int g_iOldFrameTick;
 int g_iFpsCheck;
-int g_iTIme;
+int g_iTime;
 int g_iFPS;
 int g_iNetworkLoop;
+int g_iFirst;
+
+ULONGLONG g_fpsCheck;
 
 
 unsigned __stdcall ServerControl(void* pParam)
@@ -122,8 +126,13 @@ unsigned __stdcall ServerControl(void* pParam)
  
 			ULONGLONG ullElapsedSecond = (now.QuadPart - start.QuadPart) / 10000 / 1000;
 			ULONGLONG ullElapsedMin = ullElapsedSecond / 60;
+			ullElapsedSecond %= 60;
+
 			ULONGLONG ullElapsedHour = ullElapsedMin / 60;
+			ullElapsedMin %= 60;
+
 			ULONGLONG ullElapsedDay = ullElapsedHour / 24;
+			ullElapsedHour %= 24;
 
 			printf("-----------------------------------------------------\n");
 			printf("Elapsed Time : %02lluD-%02lluH-%02lluMin-%02lluSec\n", ullElapsedDay, ullElapsedHour, ullElapsedMin, ullElapsedSecond);
@@ -141,23 +150,24 @@ unsigned __stdcall ServerControl(void* pParam)
 
 int main()
 {
+	HANDLE hMonitoring;
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, GetStdHandle(STD_OUTPUT_HANDLE));
 	srand((unsigned)time(nullptr));
 
 	InitLogger(L"LOG");
-
 	timeBeginPeriod(1);
-	if (!NetworkInitAndListen())
-	{
-		return 0;
-	}
 
-	HANDLE hMonitoring = (HANDLE)_beginthreadex(nullptr, 0, ServerControl, nullptr, 0, nullptr);
+	LOG(L"SERVERINIT", ERR, TEXTFILE, L"\n\nSERVER Start!!!");
+	if (!NetworkInitAndListen())
+		goto lb_NetworkInitAndListenFail;
+
+	hMonitoring = (HANDLE)_beginthreadex(nullptr, 0, ServerControl, nullptr, 0, nullptr);
 	if (hMonitoring == INVALID_HANDLE_VALUE)
 	{
 		LOG(L"SERVERINIT", ERR, TEXTFILE, L"Monitoring Thread _beginthreadex() func failed");
+		goto lb_monitorThreadFail;
 	}
 	LOG(L"SERVERINIT", ERR, TEXTFILE, L"Monitoring Thread Created!");
 
@@ -165,8 +175,9 @@ int main()
 	g_ClientMemoryPool = CreateMemoryPool(sizeof(st_Client), MAX_SESSION);
 
 	g_iNetworkLoop = 0;
-	g_iOldFrameTick = timeGetTime();
-	g_iTIme = g_iOldFrameTick;
+	g_iFirst = timeGetTime();
+	g_iOldFrameTick = g_iFirst;
+	g_iTime = g_iOldFrameTick;
 	g_iFPS = 0;
 	g_iFpsCheck = g_iOldFrameTick;
 
@@ -174,14 +185,17 @@ int main()
 	{
 		NetworkProc();
 		++g_iNetworkLoop;
-		g_iTIme = timeGetTime();
-		if (g_iTIme - g_iOldFrameTick >= TICK_PER_FRAME)
+		g_iTime = timeGetTime();
+		if (g_iTime - g_iOldFrameTick >= TICK_PER_FRAME)
 		{
 			Update();
-			g_iOldFrameTick += TICK_PER_FRAME;
+			g_iOldFrameTick = g_iTime - ((g_iTime - g_iFirst) % TICK_PER_FRAME);
 			++g_iFPS;
+#ifdef SYNC
+			++g_fpsCheck;
+#endif
 		}
-		if (g_iTIme - g_iFpsCheck >= 1000)
+		if (g_iTime - g_iFpsCheck >= 1000)
 		{
 			g_iFpsCheck += 1000;
 			printf("-----------------------------------------------------\n");
@@ -195,7 +209,9 @@ int main()
 	}
 	WaitForSingleObject(hMonitoring, INFINITE);
 	ClearSessionInfo();
-	LOG(L"TERMINATE", SYSTEM, TEXTFILE, L"SyncCount : %d", g_iSyncCount);
+	lb_monitorThreadFail:
+	lb_NetworkInitAndListenFail:
+	LOG(L"TERMINATE", SYSTEM, TEXTFILE, L"Server Terminate SyncCount : %d\n\n", g_iSyncCount);
 	ClearLogger();
 	return 0;
 }

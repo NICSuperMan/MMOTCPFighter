@@ -1,3 +1,4 @@
+#define SYNC
 #include "Client.h"
 #include "SerializeBuffer.h"
 #include "MiddleWare.h"
@@ -8,8 +9,8 @@
 #include "Sector.h"
 #include "Direction.h"
 
-extern int g_iSyncCount;
 
+extern int g_iSyncCount;
 
 
 void SectorUpdateAndNotify(st_Client* pClient, BYTE bySectorMoveDir, SectorPos oldSectorPos, SectorPos newSectorPos, BOOL IsMove);
@@ -46,19 +47,36 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 	dwFromId = pClient->dwID;
 	serverPos = pClient->pos;
 
-	//_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_START ID : %u, STOP POS X : %d, Y : %d", dwFromId, clientPos.shX, clientPos.shY);
-
 	CalcSector(&oldSector, serverPos);
 
 	// 이동중에 방향을 바꿔서 STOP이 오지않고 또 다시 START가 왓는데, 이때 서버 프레임이 떨어져서 싱크가 발생하는 경우.
 	if (IsSync(serverPos, clientPos))
 	{
-		//_LOG(dwLog_LEVEL_SYSTEM, L"Send Sync To Client : %u X : %d, Y : %d -> X : %d, Y : %d", dwFromId, shX, shY, shServerX, shServerY);
+#ifdef SYNC
+		if (pClient->IsAlreadyStart)
+		{
+			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 -> Start2 Sync OCCURED! Client ID : %u Arrived pos X : %d, Y : %d, Server pos X : %d, Y : %d",
+				pClient->dwID, clientPos.shX, clientPos.shY, serverPos.shX, serverPos.shY);
+			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 ArrivedTime : %u, Start1 MarshallTime : %u -> Time minus : %u\nStart1 Marshall Time: %u, Start2 Arrived Time: %u -> Time minus : %u\n\
+Start2 ArrivedTime : %u, Start2 MashallTime : %u -> Time minus : %u",
+pClient->Start1ArrivedTime, pClient->Start1MashalingTime, pClient->Start1MashalingTime - pClient->Start1ArrivedTime,
+pClient->Start1MashalingTime, pClient->Start2ArrivedTime, pClient->Start2ArrivedTime - pClient->Start1MashalingTime,
+pClient->Start2ArrivedTime, pClient->Start2MashalingTime, pClient->Start2MashalingTime - pClient->Start2ArrivedTime);
+			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 MarshallFPS - Start1 ArrivedFPS : %u\nStart2ArrivedFPS - Start1 Mashalling FPS : %u\nStart2MashalingFPS - Start2ArrivedFPS : %u"
+				, pClient->Start1MashalingFPS - pClient->Start1ArrivedFPS, pClient->Start2ArrivedFPS - pClient->Start1MashalingFPS, pClient->Start2MashalingFPS - pClient->Start2ArrivedFPS);
+		}
+		pClient->Start1ArrivedFPS = pClient->Start2ArrivedFPS;
+		pClient->Start1ArrivedTime = pClient->Start2ArrivedTime;
+		pClient->Start1MashalingFPS = pClient->Start2MashalingFPS;
+		pClient->Start1MashalingTime = pClient->Start2MashalingTime;
+#endif
 		++g_iSyncCount;
 		dwSyncPacketSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
 		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
 		for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
-			EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncPacketSize);
+		{
+			EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwSyncPacketSize);
+		}
 		g_sb1.Clear();
 		clientPos = serverPos;
 	}
@@ -81,7 +99,6 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSMSSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_START To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
 	}
 	g_sb1.Clear();
 
@@ -302,15 +319,24 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 	serverPos = pClient->pos;
 
 	CalcSector(&oldSector, serverPos);
-	// 임시방편
-	//_LOG(dwLog_LEVEL_DEBUG, L"CS_MOVE_STOP ID : %u, STOP POS X : %d, Y : %d", dwFromId, ClientPos.shX, ClientPos.shY);
 	if (IsSync(serverPos, ClientPos))
 	{
 		++g_iSyncCount;
+#ifdef SYNC
+		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart -> STOP Sync OCCURED! Client ID : %u Arrived pos X : %d, Y : %d, Server pos X : %d, Y : %d",
+			pClient->dwID, ClientPos.shX, ClientPos.shY, serverPos.shX, serverPos.shY);
+		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 ArrivedTime : %u, MarshallTime : %u -> Time minus : %u\nStart1 Marshall Time: %u, Stop Arrived Time: %u -> Time minus : %u\n\
+Stop ArrivedTime : %u, MarshallTIme : %u -> Time minus : %u",
+pClient->Start1ArrivedTime, pClient->Start1MashalingTime, pClient->Start1MashalingTime - pClient->Start1ArrivedTime,
+pClient->Start1MashalingTime, pClient->StopArrivedTime, pClient->StopArrivedTime - pClient->Start1MashalingTime,
+pClient->StopArrivedTime, pClient->StopMashallingTime, pClient->StopMashallingTime - pClient->StopArrivedTime);
+		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 MarshallFPS - Start1 ArrivedFPS : %u\nStop Arrived FPS - Start1 Mashalling FPS : %u\nStop Mashalling FPS - Stop ArrivedFPS : %u"
+			, pClient->Start1MashalingFPS - pClient->Start1ArrivedFPS, pClient->StopArrivedFPS - pClient->Start1MashalingFPS, pClient->StopMashalingFPS - pClient->StopArrivedFPS);
+#endif
 		dwSyncSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
 		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
 		for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
-			EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwSyncSize);
+			EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwSyncSize);
 		g_sb1.Clear();
 		ClientPos = serverPos;
 	}
@@ -334,7 +360,6 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSMSSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"MAKE_SC_MOVE_STOP To Session Id : %u From %u", pAroundInfo->CI.cArr[i]->dwID, dwFromId);
 	}
 
 	g_sb1.Clear();
@@ -357,19 +382,19 @@ BOOL CS_ATTACK1(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 	if (IsNetworkStateInValid(pClient->handle))
 		return FALSE;
 
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK1", dwAttackerID);
 	CalcSector(&curSector, clientPos);
+
+	// 자기자신 제외하고 보낸다
 	AroundInfo* pAround = GetAroundValidClient(curSector, pClient);
 	dwAttackSize = MAKE_SC_ATTACK(dwAttackerID, pClient->byViewDir, clientPos, 1, g_sb1);
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack1 Send To ID %u (X : %u , Y : %u)", dwAttackerID, 
-		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
 
+	// 충돌처리 진행후 피해자 구해옴, 없으면 NULL
 	pVictim = HandleCollision(pClient, clientPos, byViewDir, Pos{ dfATTACK1_RANGE_Y,dfATTACK1_RANGE_X });
 
 	// 피해자가 없음
@@ -378,21 +403,20 @@ BOOL CS_ATTACK1(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 
 	pVictim->chHp -= dfATTACK1_DAMAGE;
 	dwDamagedSize = MAKE_SC_DAMAGE(dwAttackerID, pVictim->dwID, pVictim->chHp, g_sb1);
+
+	// MAKE_SC_ATTACK보낼때의 ArundInfo를 재활용함. 이전에는 자기자신을 빼고 가져왓기 때문에 자기자신은 for문 끝나고 별도로 보내줘야함.
+	// 또한 MAKE_SC_ATTACK을 보내면서 연결이 끊길 클라들이 생길 가능성이 잇으므로 IsNetworkStateInValid로 검사해야함(사실 EnqPacketRB 내부에서 진행하기때문에 안해도 되지만 함수호출을 줄이기위해 수행함)
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		if (IsNetworkStateInValid(pVictim->handle))
 			continue;
 
+		// 주위사람에게 보내기
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		/*_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-			pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);*/
-		
 	}
+	// 자기자신에게 보내기
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
-
 	return TRUE;
 }
 
@@ -408,19 +432,18 @@ BOOL CS_ATTACK2(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 	if (IsNetworkStateInValid(pClient->handle))
 		return FALSE;
 
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u CS_ATTACK2", dwAttackerID);
 	CalcSector(&curSector, clientPos);
+	// 자기자신 제외하고 보낸다
 	AroundInfo* pAround = GetAroundValidClient(curSector, pClient);
 	dwAttackSize = MAKE_SC_ATTACK(dwAttackerID, byViewDir, clientPos, 2, g_sb1);
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack2 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
-		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
 
+	// 충돌처리 진행후 피해자 구해옴, 없으면 NULL
 	pVictim = HandleCollision(pClient, pClient->pos, byViewDir, Pos{ dfATTACK1_RANGE_Y,dfATTACK1_RANGE_X });
 
 	// 피해자가 없음
@@ -429,18 +452,17 @@ BOOL CS_ATTACK2(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 
 	pVictim->chHp -= dfATTACK2_DAMAGE;
 	dwDamagedSize = MAKE_SC_DAMAGE(dwAttackerID, pVictim->dwID, pVictim->chHp, g_sb1);
+
+	// MAKE_SC_ATTACK보낼때의 ArundInfo를 재활용함. 이전에는 자기자신을 빼고 가져왓기 때문에 자기자신은 for문 끝나고 별도로 보내줘야함.
+	// 또한 MAKE_SC_ATTACK을 보내면서 연결이 끊길 클라들이 생길 가능성이 잇으므로 IsNetworkStateInValid로 검사해야함(사실 EnqPacketRB 내부에서 진행하기때문에 안해도 되지만 함수호출을 줄이기위해 수행함)
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		if (IsNetworkStateInValid(pVictim->handle))
 			continue;
 
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
 	return TRUE;
 }
@@ -458,36 +480,34 @@ BOOL CS_ATTACK3(st_Client* pClient, BYTE byViewDir, Pos clientPos)
 		return FALSE;
 
 	CalcSector(&curSector, clientPos);
+	// 자기자신 제외하고 보낸다
 	AroundInfo* pAround = GetAroundValidClient(curSector, pClient);
 	dwAttackSize = MAKE_SC_ATTACK(dwAttackerID, pClient->byViewDir, clientPos, 3, g_sb1);
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwAttackSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Attack3 Send To ID %u (X : %u , Y : %u)", dwAttackerID,
-		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	g_sb1.Clear();
 
+	// 충돌처리 진행후 피해자 구해옴, 없으면 NULL
 	pVictim = HandleCollision(pClient, pClient->pos, byViewDir, Pos{ dfATTACK3_RANGE_Y,dfATTACK3_RANGE_X });
 
 	// 피해자가 없음
 	if (!pVictim)
 		return FALSE;
 
-	pVictim->chHp -= dfATTACK2_DAMAGE;
+	pVictim->chHp -= dfATTACK3_DAMAGE;
 	dwDamagedSize = MAKE_SC_DAMAGE(dwAttackerID, pVictim->dwID, pVictim->chHp, g_sb1);
+	// MAKE_SC_ATTACK보낼때의 ArundInfo를 재활용함. 이전에는 자기자신을 빼고 가져왓기 때문에 자기자신은 for문 끝나고 별도로 보내줘야함.
+	// 또한 MAKE_SC_ATTACK을 보내면서 연결이 끊길 클라들이 생길 가능성이 잇으므로 IsNetworkStateInValid로 검사해야함(사실 EnqPacketRB 내부에서 진행하기때문에 안해도 되지만 함수호출을 줄이기위해 수행함)
 	for (DWORD i = 0; i < pAround->CI.dwNum; ++i)
 	{
 		if (IsNetworkStateInValid(pVictim->handle))
 			continue;
 
 		EnqPacketRB(pAround->CI.cArr[i], g_sb1.GetBufferPtr(), dwDamagedSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-		//	pAround->CI.cArr[i]->dwID, pAround->CI.cArr[i]->CurSector.shX, pAround->CI.cArr[i]->CurSector.shY);
 	}
 	EnqPacketRB(pClient, g_sb1.GetBufferPtr(), dwDamagedSize);
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Damaged By Client Id : %u Send To ID %u (X : %u , Y : %u)", pVictim->dwID, dwAttackerID,
-	//	pClient->dwID, pClient->CurSector.shX, pClient->CurSector.shY);
 	g_sb1.Clear();
 
 	return TRUE;

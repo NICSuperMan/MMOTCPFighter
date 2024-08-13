@@ -6,6 +6,7 @@
 
 #include "Constant.h"
 
+extern ULONGLONG g_fpsCheck;
 
 struct st_Session
 {

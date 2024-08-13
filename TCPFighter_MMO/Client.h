@@ -4,11 +4,29 @@
 
 #include "MiddleWare.h"
 
+
+#define SYNC
+
 struct st_Client
 {
 	DWORD dwID;
 	NETWORK_HANDLE handle;
 	Pos pos;
+#ifdef SYNC
+	BOOL IsAlreadyStart = FALSE;
+	DWORD Start1ArrivedTime;
+	DWORD Start2ArrivedTime;
+	DWORD StopArrivedTime;
+	DWORD Start1MashalingTime;
+	DWORD Start2MashalingTime;
+	DWORD StopMashallingTime;
+	ULONGLONG Start1ArrivedFPS;
+	ULONGLONG Start2ArrivedFPS;
+	ULONGLONG StopArrivedFPS;
+	ULONGLONG Start1MashalingFPS;
+	ULONGLONG Start2MashalingFPS;
+	ULONGLONG StopMashalingFPS;
+#endif
 	BYTE byViewDir;
 	BYTE byMoveDir;
 	CHAR chHp;

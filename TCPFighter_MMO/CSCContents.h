@@ -1,6 +1,8 @@
 #pragma once
 #include <windows.h>
 #include "SerializeBuffer.h"
+
+#include "Client.h"
 extern SerializeBuffer g_sb1;
 
 #pragma warning(disable : 4700)

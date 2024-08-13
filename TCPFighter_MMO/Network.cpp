@@ -1,3 +1,4 @@
+#define SYNC
 #include <WS2spi.h>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -9,6 +10,13 @@
 #include "RingBuffer.h"
 #include "Session.h"
 #include "Logger.h"
+
+#ifdef SYNC
+#include "CSCContents.h"
+#include "Client.h"
+#endif
+
+
 
 
 
@@ -167,7 +175,6 @@ __forceinline void SelectProc(st_Session** ppSessionArr, fd_set* pReadSet, fd_se
 
 	if (iSelectRet == SOCKET_ERROR)
 	{
-		//_LOG(dwLog_LEVEL_DEBUG, L"Select Func Error Code : %d", WSAGetLastError());
 		__debugbreak();
 		return;
 	}
@@ -241,7 +248,6 @@ BOOL NetworkProc()
 	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
 	{
 		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Session Id : %u Disconnected", g_DisconInfo.DisconInfoArr[i]->dwID);
 		++g_iDisconCount;
 	}
 	g_DisconInfo.dwDisconNum = 0;
@@ -384,6 +390,28 @@ BOOL RecvProc(st_Session* pSession)
 			ReserveSessionDisconnected(pSession);
 			return FALSE;
 		}
+
+#ifdef SYNC
+		st_Client* pClient = (st_Client*)pSession->pClient;
+		if (header.byType == dfPACKET_CS_MOVE_START)
+		{
+			if (pClient->IsAlreadyStart)
+			{
+				pClient->Start2ArrivedTime = timeGetTime();
+				pClient->Start2ArrivedFPS = g_fpsCheck;
+			}
+			else
+			{
+				pClient->Start1ArrivedTime = timeGetTime();
+				pClient->Start1ArrivedFPS = g_fpsCheck;
+			}
+		}
+		else if (pClient->IsAlreadyStart && header.byType == dfPACKET_CS_MOVE_STOP)
+		{
+			pClient->StopArrivedTime = timeGetTime();
+			pClient->StopArrivedFPS = g_fpsCheck;
+		}
+#endif
 		// 직렬화버퍼이므로 매번 메시지를 처리하기 직전에는 rear_ == front_ == 0이라는것이 전제
 		if (g_sb1.bufferSize_ < header.bySize)
 		{
@@ -394,6 +422,32 @@ BOOL RecvProc(st_Session* pSession)
 		iDeqRet = pRecvRB->Dequeue(g_sb1.GetBufferPtr(), sizeof(header) + header.bySize);
 		if (iDeqRet == 0)
 			return FALSE;
+
+#ifdef SYNC
+		{
+			st_Client* pClient = (st_Client*)pSession->pClient;
+			if (header.byType == dfPACKET_CS_MOVE_START)
+			{
+				if (pClient->IsAlreadyStart)
+				{
+					pClient->Start2MashalingTime = timeGetTime();
+					pClient->Start2MashalingFPS = g_fpsCheck;
+				}
+				else
+				{
+					pClient->Start1MashalingTime = timeGetTime();
+					pClient->Start1MashalingFPS = g_fpsCheck;
+					pClient->IsAlreadyStart = TRUE;
+				}
+			}
+			else if (header.byType == dfPACKET_CS_MOVE_STOP)
+			{
+				pClient->StopMashallingTime = timeGetTime();
+				pClient->StopMashalingFPS = g_fpsCheck;
+				pClient->IsAlreadyStart = FALSE;
+			}
+		}
+#endif
 
 		g_sb1.MoveWritePos(iDeqRet);
 		g_sb1.MoveReadPos(sizeof(header));

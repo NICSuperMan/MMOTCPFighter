@@ -116,11 +116,13 @@ void ClearSessionInfo()
 {
 	int Leak;
 
+	LOG(L"TERMINATE", ERR, TEXTFILE, L"TERMINATE Process Start!!\nClear SessionInfo Current Session Num : %u, g_DisconInfoSessionNum : %u", g_dwSessionNum, g_DisconInfo.dwDisconNum);
 	for (DWORD i = 0; i < g_dwSessionNum; ++i)
 	{
 		ReserveSessionDisconnected(g_pSessionArr[i]);
 	}
 
+	LOG(L"TERMINATE", ERR, TEXTFILE, L"Remove %u Number of Session", g_DisconInfo.dwDisconNum);
 	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
 	{
 		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
