@@ -1,5 +1,4 @@
 #define _CRTDBG_MAP_ALLOC
-#define SYNC
 #include <time.h>
 #include <crtdbg.h>
 #include <windows.h>

@@ -95,21 +95,15 @@ void CALLBACK RemoveClient_IMPL(void* pClient)
 	st_Client* pRemoveClient = (st_Client*)pClient;
 	SectorPos curSector;
 	CalcSector(&curSector, pRemoveClient->pos);
-
+	RemoveClientAtSector(pRemoveClient, curSector);
 	AroundInfo* pAroundInfo = GetAroundValidClient(curSector, nullptr);
 	dwMSDCSize = MAKE_SC_DELETE_CHARACTER(pRemoveClient->dwID, g_sb1);
 	for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
-	{
 		EnqPacketRB(pAroundInfo->CI.cArr[i], g_sb1.GetBufferPtr(), dwMSDCSize);
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID %u Send Delete Character To %u  ( X : %u, Y : %u)", pRemoveClient->dwID, pAroundInfo->CI.cArr[i]->dwID,
-		//	pAroundInfo->CI.cArr[i]->CurSector.shX, pAroundInfo->CI.cArr[i]->CurSector.shY);
-	}
 	g_sb1.Clear();
 
-	RemoveClientAtSector(pRemoveClient, curSector);
 
 	RetMemoryToPool(g_ClientMemoryPool, pClient);
-	//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u Disconnected", pRemoveClient->dwID);
 }
 
 BOOL CALLBACK PacketProc(void* pClient, BYTE byPacketType)

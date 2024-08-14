@@ -116,18 +116,17 @@ void ClearSessionInfo()
 {
 	int Leak;
 
-	LOG(L"TERMINATE", ERR, TEXTFILE, L"TERMINATE Process Start!!\nClear SessionInfo Current Session Num : %u, g_DisconInfoSessionNum : %u", g_dwSessionNum, g_DisconInfo.dwDisconNum);
-	for (DWORD i = 0; i < g_dwSessionNum; ++i)
-	{
-		ReserveSessionDisconnected(g_pSessionArr[i]);
-	}
+	LOG(L"TERMINATE", ERR, TEXTFILE, L"TERMINATE Process Start!!\nClear SessionInfo Current Session Num : %u, g_DisconInfoSessionNum : %u", g_dwSessionNum);
 
-	LOG(L"TERMINATE", ERR, TEXTFILE, L"Remove %u Number of Session", g_DisconInfo.dwDisconNum);
-	for (DWORD i = 0; i < g_DisconInfo.dwDisconNum; ++i)
+	DWORD dwSessionNum = g_dwSessionNum;
+	for (DWORD i = 0; i < dwSessionNum; ++i)
 	{
-		RemoveSession(g_DisconInfo.DisconInfoArr[i]);
+		RemoveClient(g_pSessionArr[i]->pClient);
+		closesocket(g_pSessionArr[i]->clientSock);
+		RetMemoryToPool(g_RBMemoryPool, g_pSessionArr[i]->pSendRB);
+		RetMemoryToPool(g_RBMemoryPool, g_pSessionArr[i]->pRecvRB);
+		RetMemoryToPool(g_SessionMemoryPool, g_pSessionArr[i]);
 	}
-
 	Leak = ReportLeak(g_SessionMemoryPool);
 	if (Leak != 0)
 	{

@@ -4,8 +4,9 @@
 
 #include "MiddleWare.h"
 
+#include "string"
 
-#define SYNC
+//#define SYNC
 
 struct st_Client
 {
@@ -14,6 +15,7 @@ struct st_Client
 	Pos pos;
 #ifdef SYNC
 	BOOL IsAlreadyStart = FALSE;
+	BOOL IsFirstUpdate = FALSE;
 	DWORD Start1ArrivedTime;
 	DWORD Start2ArrivedTime;
 	DWORD StopArrivedTime;
@@ -26,6 +28,12 @@ struct st_Client
 	ULONGLONG Start1MashalingFPS;
 	ULONGLONG Start2MashalingFPS;
 	ULONGLONG StopMashalingFPS;
+	ULONGLONG FirstUpdateTime;
+	ULONGLONG FirstUpdateFPS;
+	std::wstring DebugSync = L"";
+	Pos PrevPos;
+	BYTE RBArr[30];
+	BYTE SerializeArr[30];
 #endif
 	BYTE byViewDir;
 	BYTE byMoveDir;

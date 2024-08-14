@@ -7,6 +7,9 @@
 #include "Sector.h"
 #include "SerializeBuffer.h"
 
+#include <sstream>
+//#endif
+
 extern SerializeBuffer g_sb1;
 extern SerializeBuffer g_sb2;
 extern SerializeBuffer g_sb3;
@@ -17,6 +20,7 @@ st_Client* g_pClientArr[MAX_SESSION];
 
 extern int g_iDisConByTimeOut;
 
+extern ULONGLONG g_fpsCheck;
 
 //void GetDirStr(BYTE byMoveDir, WCHAR* pDir, int len);
 
@@ -137,6 +141,28 @@ void Update()
 		if (g_pClientArr[i]->byMoveDir == dfPACKET_MOVE_DIR_NOMOVE)
 			continue;
 
+		// 처음 업데이트시 시간과 전체 FPS카운터 기록
+#ifdef SYNC
+		std::wstringstream wss;
+		if (g_pClientArr[i]->IsFirstUpdate == FALSE)
+		{
+			g_pClientArr[i]->FirstUpdateTime = timeGetTime();
+			g_pClientArr[i]->FirstUpdateFPS = g_fpsCheck;
+			g_pClientArr[i]->IsFirstUpdate = TRUE;
+
+			if (g_pClientArr[i]->IsAlreadyStart)
+			{
+				wss << L"Start -> Start Update HAJIME! Time : " << g_pClientArr[i]->FirstUpdateTime << L", FPS : " << g_fpsCheck << L"\n";
+			}
+			else
+			{
+				wss << L"NOMOVE -> Start HAJIME! Time : " << g_pClientArr[i]->FirstUpdateTime << L", FPS : " << g_fpsCheck << L"\n";
+				g_pClientArr[i]->IsAlreadyStart = TRUE;
+			}
+			g_pClientArr[i]->DebugSync.append(wss.str());
+		}
+#endif
+
 		// 이동후 위치계산
 		dirVector = vArr[g_pClientArr[i]->byMoveDir];
 		oldPos = g_pClientArr[i]->pos;
@@ -147,8 +173,10 @@ void Update()
 		if (!IsValidPos(newPos))
 			continue;
 
-		//_LOG(dwLog_LEVEL_DEBUG, L"Client ID : %u X : %d, Y : %d -> X : %d, Y : %d ", g_pClientArr[i]->dwID, oldPos.shX, oldPos.shY, newPos.shX, newPos.shY);
-
+#ifdef SYNC
+		wss << L"X : " << oldPos.shX << L", Y: " << oldPos.shY << L" -> X : " << newPos.shX << L", Y : " << newPos.shY << L", FPS : " << g_fpsCheck << L"Time : " << timeGetTime() << '\n';
+		g_pClientArr[i]->DebugSync.append(wss.str());
+#endif
 		// 이동 후 섹터와 이전 섹터 계산
 		CalcSector(&oldSector, oldPos);
 		CalcSector(&newSector, newPos);

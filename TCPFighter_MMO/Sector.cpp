@@ -97,12 +97,10 @@ void AddClientAtSector(st_Client* pClient,SectorPos newSectorPos)
 {
 	LinkToLinkedListLast(&(g_Sector[newSectorPos.shY][newSectorPos.shX].pClientLinkHead), &(g_Sector[newSectorPos.shY][newSectorPos.shX].pClientLinkTail), &(pClient->SectorLink));
 	++(g_Sector[newSectorPos.shY][newSectorPos.shX].dwNumOfClient);
-	//LOG(L"SECTOR",ERR,CONSOLE, L"NewClient ID : %u \nIn Sector X : %d, Y : %d, ClientNum In Sector : %u",pClient->dwID,newSectorPos.shX, newSectorPos.shY, g_Sector[newSectorPos.shY][newSectorPos.shX].dwNumOfClient);
 }
 
 void RemoveClientAtSector(st_Client* pClient, SectorPos oldSectorPos)
 {
 	UnLinkFromLinkedList(&(g_Sector[oldSectorPos.shY][oldSectorPos.shX].pClientLinkHead), &(g_Sector[oldSectorPos.shY][oldSectorPos.shX].pClientLinkTail), &(pClient->SectorLink));
 	--(g_Sector[oldSectorPos.shY][oldSectorPos.shX].dwNumOfClient);
-	//LOG(L"SECTOR", ERR, CONSOLE, L"Client ID : %u \nremoved from Sector X : %d, Y : %d, ClientNum In Sector : %u", pClient->dwID, oldSectorPos.shX, oldSectorPos.shY, g_Sector[oldSectorPos.shY][oldSectorPos.shX].dwNumOfClient);
 }
