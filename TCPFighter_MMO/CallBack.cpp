@@ -39,9 +39,6 @@ void CALLBACK CreatePlayer(void** ppOutClient, NETWORK_HANDLE handle, DWORD dwID
 	pClient->chHp = INIT_HP;
 	pClient->CurSector = sector;
 
-#ifdef SYNC
-	pClient->IsAlreadyStart = FALSE;
-#endif
 
 	// 생성된 클라이언트에게 자기 자신이 생성되엇음을 알리기
 	//_LOG(dwLog_LEVEL_DEBUG, L"Notify New Characters of his Location");

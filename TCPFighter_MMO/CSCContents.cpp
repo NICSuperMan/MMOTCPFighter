@@ -53,29 +53,6 @@ BOOL CS_MOVE_START(st_Client* pClient, BYTE byMoveDir, Pos clientPos)
 	// 이동중에 방향을 바꿔서 STOP이 오지않고 또 다시 START가 왓는데, 이때 서버 프레임이 떨어져서 싱크가 발생하는 경우.
 	if (IsSync(serverPos, clientPos))
 	{
-#ifdef SYNC
-		if (pClient->IsAlreadyStart)
-		{
-			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 -> Start2 Sync OCCURED! Client ID : %u Arrived pos X : %d, Y : %d, Server pos X : %d, Y : %d",
-				pClient->dwID, clientPos.shX, clientPos.shY, serverPos.shX, serverPos.shY);
-			LOG(L"SYNC", ERR, TEXTFILE, L"RingBuffer Contents : ");
-			TempBufferToFileBinary(L"SYNC", (const CHAR*)pClient->RBArr, 8);
-			LOG(L"SYNC", ERR, TEXTFILE, L"SerializeBuffer Contents : ");
-			TempBufferToFileBinary(L"SYNC", (const CHAR*)pClient->SerializeArr, 8);
-			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 ArrivedTime : %u, Start1 MarshallTime : %u -> Time minus : %u\nStart1 Marshall Time: %u, Start2 Arrived Time: %u -> Time minus : %u -> %lluFPS\n\
-Start2 ArrivedTime : %u, Start2 MashallTime : %u -> Time minus : %u",
-pClient->Start1ArrivedTime, pClient->Start1MashalingTime, pClient->Start1MashalingTime - pClient->Start1ArrivedTime,
-pClient->Start1MashalingTime, pClient->Start2ArrivedTime, pClient->Start2ArrivedTime - pClient->Start1MashalingTime, (pClient->Start2ArrivedTime - pClient->Start1MashalingTime) / 40,
-pClient->Start2ArrivedTime, pClient->Start2MashalingTime, pClient->Start2MashalingTime - pClient->Start2ArrivedTime);
-			LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 MarshallFPS - Start1 ArrivedFPS : %u\nStart2ArrivedFPS - Start1 Mashalling FPS : %u\nStart2MashalingFPS - Start2ArrivedFPS : %u"
-				, pClient->Start1MashalingFPS - pClient->Start1ArrivedFPS, pClient->Start2ArrivedFPS - pClient->Start1MashalingFPS, pClient->Start2MashalingFPS - pClient->Start2ArrivedFPS);
-			TempBufferToFile(L"SYNC", pClient->DebugSync.c_str());
-		}
-		pClient->Start1ArrivedFPS = pClient->Start2ArrivedFPS;
-		pClient->Start1ArrivedTime = pClient->Start2ArrivedTime;
-		pClient->Start1MashalingFPS = pClient->Start2MashalingFPS;
-		pClient->Start1MashalingTime = pClient->Start2MashalingTime;
-#endif
 		++g_iSyncCount;
 		dwSyncPacketSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
 		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
@@ -328,22 +305,6 @@ BOOL CS_MOVE_STOP(st_Client* pClient, BYTE byViewDir, Pos ClientPos)
 	if (IsSync(serverPos, ClientPos))
 	{
 		++g_iSyncCount;
-#ifdef SYNC
-		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart -> STOP Sync OCCURED! Client ID : %u Arrived pos X : %d, Y : %d, Server pos X : %d, Y : %d",
-			pClient->dwID, ClientPos.shX, ClientPos.shY, serverPos.shX, serverPos.shY);
-		LOG(L"SYNC", ERR, TEXTFILE, L"RingBuffer Contents : ");
-		TempBufferToFileBinary(L"SYNC", (const CHAR*)pClient->RBArr, 8);
-		LOG(L"SYNC", ERR, TEXTFILE, L"SerializeBuffer Contents : ");
-		TempBufferToFileBinary(L"SYNC", (const CHAR*)pClient->SerializeArr, 8);
-		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 ArrivedTime : %u, MarshallTime : %u -> Time minus : %u\nStart1 Marshall Time: %u, Stop Arrived Time: %u -> Time minus : %u -> %lluFPS\n\
-Stop ArrivedTime : %u, MarshallTIme : %u -> Time minus : %u",
-pClient->Start1ArrivedTime, pClient->Start1MashalingTime, pClient->Start1MashalingTime - pClient->Start1ArrivedTime,
-pClient->Start1MashalingTime, pClient->StopArrivedTime, pClient->StopArrivedTime - pClient->Start1MashalingTime, (pClient->StopArrivedTime - pClient->Start1MashalingTime) / 40,
-pClient->StopArrivedTime, pClient->StopMashallingTime, pClient->StopMashallingTime - pClient->StopArrivedTime);
-		LOG(L"SYNC", ERR, TEXTFILE, L"\nStart1 MarshallFPS - Start1 ArrivedFPS : %u\nStop Arrived FPS - Start1 Mashalling FPS : %u\nStop Mashalling FPS - Stop ArrivedFPS : %u"
-			, pClient->Start1MashalingFPS - pClient->Start1ArrivedFPS, pClient->StopArrivedFPS - pClient->Start1MashalingFPS, pClient->StopMashalingFPS - pClient->StopArrivedFPS);
-		TempBufferToFile(L"SYNC", pClient->DebugSync.c_str());
-#endif
 		dwSyncSize = MAKE_SC_SYNC(dwFromId, serverPos, g_sb1);
 		AroundInfo* pAroundInfo = GetAroundValidClient(oldSector, nullptr);
 		for (DWORD i = 0; i < pAroundInfo->CI.dwNum; ++i)
@@ -351,10 +312,6 @@ pClient->StopArrivedTime, pClient->StopMashallingTime, pClient->StopMashallingTi
 		g_sb1.Clear();
 		ClientPos = serverPos;
 	}
-	//STOP에서는 비워줘야한다
-#ifdef SYNC
-		pClient->DebugSync.clear();
-#endif
 
 	CalcSector(&newSector, ClientPos);
 	// dfERROR_RANGE보다 오차가 작지만, 섹터가 틀려서 섹터를 클라기준으로 맞출경우 업데이트 

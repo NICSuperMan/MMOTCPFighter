@@ -190,9 +190,6 @@ int main()
 			Update();
 			g_iOldFrameTick = g_iTime - ((g_iTime - g_iFirst) % TICK_PER_FRAME);
 			++g_iFPS;
-#ifdef SYNC
-			++g_fpsCheck;
-#endif
 		}
 		if (g_iTime - g_iFpsCheck >= 1000)
 		{

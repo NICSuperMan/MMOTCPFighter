@@ -177,7 +177,6 @@ void SET_LOG_LEVEL(LOG_LEVEL level)
 LOG_LEVEL INCREASE_LOG_LEVEL()
 {
 	LOG_LEVEL Ret;
-	LOG_LEVEL level;
 
 	AcquireSRWLockExclusive(&g_srwForLogLevel);
 	if (g_logLevel >= DEBUG && g_logLevel <= SYSTEM)

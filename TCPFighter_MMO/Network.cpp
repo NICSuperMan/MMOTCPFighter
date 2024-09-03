@@ -391,27 +391,6 @@ BOOL RecvProc(st_Session* pSession)
 			return FALSE;
 		}
 
-#ifdef SYNC
-		st_Client* pClient = (st_Client*)pSession->pClient;
-		if (header.byType == dfPACKET_CS_MOVE_START)
-		{
-			if (pClient->IsAlreadyStart)
-			{
-				pClient->Start2ArrivedTime = timeGetTime();
-				pClient->Start2ArrivedFPS = g_fpsCheck;
-			}
-			else
-			{
-				pClient->Start1ArrivedTime = timeGetTime();
-				pClient->Start1ArrivedFPS = g_fpsCheck;
-			}
-		}
-		else if (pClient->IsAlreadyStart && header.byType == dfPACKET_CS_MOVE_STOP)
-		{
-			pClient->StopArrivedTime = timeGetTime();
-			pClient->StopArrivedFPS = g_fpsCheck;
-		}
-#endif
 		// 직렬화버퍼이므로 매번 메시지를 처리하기 직전에는 rear_ == front_ == 0이라는것이 전제
 		if (g_sb1.bufferSize_ < header.bySize)
 		{
@@ -419,46 +398,10 @@ BOOL RecvProc(st_Session* pSession)
 			g_sb1.Resize();
 		}
 
-#ifdef SYNC
-		pRecvRB->Peek((char*)((st_Client*)(pSession->pClient))->RBArr, sizeof(header) + header.bySize);
-#endif
 		iDeqRet = pRecvRB->Dequeue(g_sb1.GetBufferPtr(), sizeof(header) + header.bySize);
 		if (iDeqRet == 0)
 			return FALSE;
 
-#ifdef SYNC
-		{
-			st_Client* pClient = (st_Client*)pSession->pClient;
-			if (header.byType == dfPACKET_CS_MOVE_START)
-			{
-				if (pClient->IsAlreadyStart)
-				{
-					pClient->Start2MashalingTime = timeGetTime();
-					pClient->Start2MashalingFPS = g_fpsCheck;
-					pClient->IsFirstUpdate = FALSE;
-				}
-				else
-				{
-					pClient->Start1MashalingTime = timeGetTime();
-					pClient->Start1MashalingFPS = g_fpsCheck;
-					// Update로 보냄
-					//pClient->IsAlreadyStart = TRUE;
-					pClient->IsFirstUpdate = FALSE;
-				}
-			}
-			else if (header.byType == dfPACKET_CS_MOVE_STOP)
-			{
-				pClient->StopMashallingTime = timeGetTime();
-				pClient->StopMashalingFPS = g_fpsCheck;
-				pClient->IsAlreadyStart = FALSE;
-				pClient->IsFirstUpdate = FALSE;
-			}
-		}
-#endif
-
-#ifdef SYNC
-		memcpy(((st_Client*)(pSession->pClient))->SerializeArr, g_sb1.pBuffer_, iDeqRet);
-#endif
 		g_sb1.MoveWritePos(iDeqRet);
 		g_sb1.MoveReadPos(sizeof(header));
 		packetProc(pSession->pClient, header.byType);
