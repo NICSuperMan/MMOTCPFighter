@@ -52,4 +52,4 @@ constexpr int dwNumOfSectorHorizon = dfRANGE_MOVE_RIGHT / df_SECTOR_WIDTH;
 constexpr int dwNumOfSectorVertical = dfRANGE_MOVE_BOTTOM / df_SECTOR_HEIGHT;
 
 constexpr DWORD dwTimeOut = 30 * 1000;
-constexpr DWORD MAX_SESSION = 8100;
+constexpr DWORD MAX_SESSION = 10000;
