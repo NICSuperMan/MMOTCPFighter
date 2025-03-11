@@ -20,7 +20,7 @@ DWORD MAKE_SC_CREATE_MY_CHARACTER(DWORD dwDestID, BYTE byDirection, Pos pos, CHA
 	if ((int)dwDestID < 0)
 		__debugbreak();
 #endif
-	DWORD dwHeaderSize = MAKE_HEADER(dwSize, dfPACKET_SC_CREATE_MY_CHARACTER, sb);
+	DWORD dwHeaderSize = MAKE_HEADER(dwSize, dfPACKET_SC_CREATE_MY_CHARACTER, sb); 
 	sb << dwDestID << byDirection << pos.shX << pos.shY << chHP;
 	return dwSize + dwHeaderSize;
 }
