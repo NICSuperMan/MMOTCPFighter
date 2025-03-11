@@ -18,5 +18,5 @@ union Pos
 		SHORT shX;
 	};
 	int YX;
-};
+}; 
 
