@@ -21,6 +21,6 @@ public:
 	char* GetWriteStartPtr(void);
 	char* GetReadStartPtr(void);
 	int iOutPos_;
-	int iInPos_;
+	int iInPos_; 
 	char Buffer_[ACTUAL_SIZE];
 };
