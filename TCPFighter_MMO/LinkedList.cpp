@@ -6,7 +6,7 @@ void LinkToLinkedListFirst(LINKED_NODE** ppHead, LINKED_NODE** ppTail, LINKED_NO
 	{
 		// list is empty
 		*ppTail = *ppHead = pNew;
-		(*ppHead)->pNext = nullptr;
+		(*ppHead)->pNext = nullptr; 
 		(*ppHead)->pPrev = nullptr;
 	}
 	else
