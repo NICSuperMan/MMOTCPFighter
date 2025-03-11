@@ -16,7 +16,7 @@ public:
 	};
 
 	SerializeBuffer()
-		:bufferSize_{ 0 }, front_{ 0 }, rear_{ 0 }, pBuffer_{ nullptr }
+		:bufferSize_{ 0 }, front_{ 0 }, rear_{ 0 }, pBuffer_{ nullptr } 
 	{}
 
 	void AllocBuffer(IN const int size = DEFAULT_SIZE)
@@ -115,7 +115,7 @@ public:
 	}
 	__forceinline SerializeBuffer& operator >>(OUT unsigned char& value)
 	{
-		// valueÀÇ size¸¸Å­ ÀĞÀ»°Ô ¾øÀ½.
+		// valueÃ€Ã‡ sizeÂ¸Â¸Ã…Â­ Ã€ÃÃ€Â»Â°Ã” Â¾Ã¸Ã€Â½.
 		if (rear_ - front_ < sizeof(value))
 		{
 			throw 1;
