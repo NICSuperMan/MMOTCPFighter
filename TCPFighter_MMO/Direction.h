@@ -8,7 +8,7 @@ constexpr BYTE dfPACKET_MOVE_DIR_RD = 5;
 constexpr BYTE dfPACKET_MOVE_DIR_DD = 6;
 constexpr BYTE dfPACKET_MOVE_DIR_LD = 7;
 constexpr BYTE dfPACKET_MOVE_DIR_NOMOVE = 8;
-
+ 
 constexpr BYTE MOVE = 1;
 constexpr BYTE NOMOVE = 0;
 
@@ -46,7 +46,7 @@ constexpr DirVector vArr[8]{
 	DirVector{1,-1} //LD
 };
 
-// ÀÌµ¿ÈÄ OldSector¿¡¼­ ÇöÀç Ä³¸¯ÅÍÀÇ ÀÌµ¿¹æÇâÀ» ÇØ´ç ¹è¿­ÀÇ ÀÎµ¦½º·Î ´ëÀÔÇØ¼­ ¾òÀº ¹æÇâÀ» GetDeltaSector¿¡ ´ëÀÔ
+// ì´ë™í›„ OldSectorì—ì„œ í˜„ìž¬ ìºë¦­í„°ì˜ ì´ë™ë°©í–¥ì„ í•´ë‹¹ ë°°ì—´ì˜ ì¸ë±ìŠ¤ë¡œ ëŒ€ìž…í•´ì„œ ì–»ì€ ë°©í–¥ì„ GetDeltaSectorì— ëŒ€ìž…
 constexpr BYTE removeDirArr[8] =
 {
 	dfPACKET_MOVE_DIR_RU, //LL
@@ -59,7 +59,7 @@ constexpr BYTE removeDirArr[8] =
 	dfPACKET_MOVE_DIR_LU, //LD
 };
 
-// ÀÌµ¿ÈÄ NewSecotr¿¡¼­ ÇöÀç Ä³¸¯ÅÍÀÇ ÀÌµ¿¹æÇâÀ» ÇØ´ç ¹è¿­ÀÇ ÀÎµ¦½º·Î ´ëÀÔÇØ¼­ ¾òÀº ¹æÇâÀ» GetDeltaSctor¿¡ ´ëÀÔ
+// ì´ë™í›„ NewSecotrì—ì„œ í˜„ìž¬ ìºë¦­í„°ì˜ ì´ë™ë°©í–¥ì„ í•´ë‹¹ ë°°ì—´ì˜ ì¸ë±ìŠ¤ë¡œ ëŒ€ìž…í•´ì„œ ì–»ì€ ë°©í–¥ì„ GetDeltaSctorì— ëŒ€ìž…
 constexpr BYTE AddDirArr[8] =
 {
 	dfPACKET_MOVE_DIR_LD, //LL
