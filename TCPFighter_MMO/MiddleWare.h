@@ -19,7 +19,7 @@ typedef void(CALLBACK* REGISTER_CLIENT)(void** ppOutClient, NETWORK_HANDLE handl
 typedef void(CALLBACK* REMOVE_CLIENT)(void* pClient);
 typedef BOOL(CALLBACK* PACKET_PROC)(void* pClient, BYTE byPacketType);
 
-
+ 
 extern REGISTER_CLIENT RegisterClient;
 extern REMOVE_CLIENT  RemoveClient;
 extern PACKET_PROC packetProc;
