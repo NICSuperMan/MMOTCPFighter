@@ -3,13 +3,13 @@
 
 struct Header
 {
-	unsigned char byCode;			// ÆĞÅ¶ÄÚµå 0x89 °íÁ¤.
-	unsigned char bySize;			// ÆĞÅ¶ »çÀÌÁî.
-	unsigned char byType;			// ÆĞÅ¶Å¸ÀÔ.
+	unsigned char byCode;			// íŒ¨í‚·ì½”ë“œ 0x89 ê³ ì •.
+	unsigned char bySize;			// íŒ¨í‚· ì‚¬ì´ì¦ˆ.
+	unsigned char byType;			// íŒ¨í‚·íƒ€ì….
 };
 
 BOOL NetworkInitAndListen();
 BOOL AcceptProc();
-BOOL NetworkProc();
+BOOL NetworkProc(); 
 
 
