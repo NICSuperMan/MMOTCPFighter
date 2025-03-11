@@ -2,7 +2,7 @@
 #include "Client.h"
 #include <cstddef>
 #include "Position.h"
-#include "Direction.h"
+#include "Direction.h" 
 #include "LinkedList.h"
 
 #include "Constant.h"
@@ -51,9 +51,9 @@ __forceinline BOOL IsValidSector(int iSectorY, int iSectorX)
 {
 	BOOL bValidVertical;
 	BOOL bValidHorizon;
-	bValidVertical = (iSectorY >= 0) && (iSectorY < dwNumOfSectorVertical); // YÃà Á¤»ó
-	bValidHorizon = (iSectorX >= 0) && (iSectorX < dwNumOfSectorHorizon); // XÃà Á¤»ó
-	return bValidVertical && bValidHorizon; // µÑ´Ù Á¤»óÀÌ¸é TRUE
+	bValidVertical = (iSectorY >= 0) && (iSectorY < dwNumOfSectorVertical); // Yì¶• ì •ìƒ
+	bValidHorizon = (iSectorX >= 0) && (iSectorX < dwNumOfSectorHorizon); // Xì¶• ì •ìƒ
+	return bValidVertical && bValidHorizon; // ë‘˜ë‹¤ ì •ìƒì´ë©´ TRUE
 }
 
 #pragma optimize("",on)
@@ -61,9 +61,9 @@ __forceinline BOOL IsValidSector(SectorPos sp)
 {
 	BOOL bValidVertical;
 	BOOL bValidHorizon;
-	bValidVertical = (sp.shY >= 0) && (sp.shY < dwNumOfSectorVertical); // YÃà Á¤»ó
-	bValidHorizon = (sp.shX >= 0) && (sp.shX < dwNumOfSectorHorizon); // XÃà Á¤»ó
-	return bValidVertical && bValidHorizon; // µÑ´Ù Á¤»óÀÌ¸é TRUE
+	bValidVertical = (sp.shY >= 0) && (sp.shY < dwNumOfSectorVertical); // Yì¶• ì •ìƒ
+	bValidHorizon = (sp.shX >= 0) && (sp.shX < dwNumOfSectorHorizon); // Xì¶• ì •ìƒ
+	return bValidVertical && bValidHorizon; // ë‘˜ë‹¤ ì •ìƒì´ë©´ TRUE
 }
 
 __forceinline BYTE GetSectorMoveDir(SectorPos oldSector, SectorPos newSector)
@@ -117,8 +117,8 @@ static __forceinline BOOL IsValidPos(Pos pos)
 }
 #pragma optimize("",off)
 
-// Á¦°ÅµÈ ¼½ÅÍ¸¦ ¾òÀ»¶§´Â BaseSector¿¡ OldSector´ëÀÔ
-// »õ·Î¿î ¼½ÅÍ¸¦ ¾òÀ»¶§´Â BaseSector¿¡ NewSector´ëÀÔ
+// ì œê±°ëœ ì„¹í„°ë¥¼ ì–»ì„ë•ŒëŠ” BaseSectorì— OldSectorëŒ€ìž…
+// ìƒˆë¡œìš´ ì„¹í„°ë¥¼ ì–»ì„ë•ŒëŠ” BaseSectorì— NewSectorëŒ€ìž…
 __forceinline void GetDeltaSector(BYTE byBaseDir, st_SECTOR_AROUND* pSectorAround, BYTE byDeltaSectorNum, SHORT shBaseSectorPointY, SHORT shBaseSectorPointX)
 {
 	SHORT shGetSectorY;
@@ -151,7 +151,7 @@ __forceinline void GetValidClientFromSector(SectorPos sectorPos, AroundInfo* pAr
 	{
 		pClient = LinkToClient(pCurLink);
 
-		// ÇÔ¼öÀÌ¸§¾Õ¿¡ Valid°¡ ºÙÀº ÀÌÀ¯
+		// í•¨ìˆ˜ì´ë¦„ì•žì— Validê°€ ë¶™ì€ ì´ìœ 
 		if (IsNetworkStateInValid(pClient->handle))
 			goto lb_next;
 
