@@ -10,7 +10,7 @@ constexpr int dfPACKET_SC_MOVE_STOP = 13;
 constexpr int dfPACKET_SC_ATTACK1 = 21;
 constexpr int dfPACKET_SC_ATTACK2 = 23;
 constexpr int dfPACKET_SC_ATTACK3 = 25;
-constexpr int dfPACKET_SC_DAMAGE = 30;
+constexpr int dfPACKET_SC_DAMAGE = 30; 
 constexpr int dfPACKET_SC_SYNC = 251;
 constexpr int dfPACKET_SC_ECHO = 253;
 
